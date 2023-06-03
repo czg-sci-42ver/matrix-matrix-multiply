@@ -62,9 +62,9 @@ void calc_speed_up()
         {dgemm_basic, "dgemm_basic"},
         {dgemm_basic_blocked, "dgemm_basic_blocked"},
         {dgemm_avx256, "dgemm_avx256"},
-        {dgemm_avx512, "dgemm_avx512"},
-        {dgemm_unrolled, "dgemm_unrolled"},
-        {dgemm_blocked, "dgemm_blocked"},
+        //{dgemm_avx512, "dgemm_avx512"},
+        //{dgemm_unrolled, "dgemm_unrolled"},
+        //{dgemm_blocked, "dgemm_blocked"},
     };
 
     for(auto & v : all_dgemm)
