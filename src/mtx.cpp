@@ -8,7 +8,14 @@ Mtx::Mtx(uint32_t n)
     : m_n(n)
 {
     // m_data = new double[n * n];
+    /* why choose 64*/
     m_data = (double*) _mm_malloc (n * n * sizeof(double), 64);
+    // m_data = (double*) _mm_malloc (n * n * sizeof(double), 32);
+    // m_data = (double*) _mm_malloc (n * n * sizeof(double), 16);
+    // m_data = (double*) _mm_malloc (n * n * sizeof(double), 8);
+
+    /* fail without alignment.*/
+    // m_data = (double*) malloc(n * n * sizeof(double));
     if (m_data == nullptr) 
         throw std::bad_alloc{}; // ("failed to allocate largest problem size");
 }
