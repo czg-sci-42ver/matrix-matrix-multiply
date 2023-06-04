@@ -7,7 +7,7 @@ set( CMAKE_CXX_STANDARD_REQUIRED ON )
 set( CMAKE_CXX_EXTENSIONS OFF )
 set( CMAKE_BUILD_TYPE Release )
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -g -fopenmp -march=native -mtune=native -mavx -mno-avx512f")
+set(CMAKE_CXX_FLAGS "-lefence -Wall -Wextra -Wpedantic -g -fopenmp -march=native -mtune=native -mavx -mno-avx512f")
 
 add_subdirectory(src)
 

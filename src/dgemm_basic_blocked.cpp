@@ -45,7 +45,7 @@ held in registers, we can minimize the number of loads and stores in the program
 which again improves performance.
 */
 
-static constexpr uint32_t BLOCKSIZE = 32;
+static constexpr uint32_t BLOCKSIZE = 4;
 
 static void do_block (const uint32_t n, const uint32_t si, const uint32_t sj, const uint32_t sk, const double *A, const double*B, double *C)
 {

@@ -43,10 +43,16 @@ static double calc_abs_sum(const uint32_t n, const double* c, const double* q)
 void check()
 {
     constexpr uint32_t trial_no = 11;
-    /* why 32/16/8 *4 work , but 4*4 fails*/
-    constexpr uint32_t n = 8 * 4;
+    /* 
+    why 32/16/8 *4 work , but 4*4 fails
+    
+    by valgrind, ’Invalid read of size 8‘ when 'at 0x10B7BA: do_block (dgemm_basic_blocked.cpp:59)' cause afterwards pointer to be freed is weird 'changed'.
+
+    so 32>4*4, so read
+    */
+    // constexpr uint32_t n = 8 * 4;
     /* why can't change size*/
-    // constexpr uint32_t n = 4 * 4;
+    constexpr uint32_t n = 4 * 4;
     // constexpr double eps = 1e-6;
 
     std::vector< Dgemm > all_dgemm =
