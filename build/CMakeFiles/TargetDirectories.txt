@@ -1,5 +1,0 @@
-/home/czg/matrix-matrix-multiply/build/CMakeFiles/edit_cache.dir
-/home/czg/matrix-matrix-multiply/build/CMakeFiles/rebuild_cache.dir
-/home/czg/matrix-matrix-multiply/build/src/CMakeFiles/dgemm.dir
-/home/czg/matrix-matrix-multiply/build/src/CMakeFiles/edit_cache.dir
-/home/czg/matrix-matrix-multiply/build/src/CMakeFiles/rebuild_cache.dir
