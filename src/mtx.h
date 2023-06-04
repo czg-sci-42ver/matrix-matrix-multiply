@@ -22,7 +22,7 @@ public:
     const double* data() const { return m_data; }
     double* data() { return m_data; }
 
-    void generate(double min_val = 100.0, double max_val = 10000.0);
+    void generate(double min_val = 1.0, double max_val = 10.0);
     void zero();
 
 private:
