@@ -16,7 +16,7 @@ Mtx::Mtx(uint32_t n)
 Mtx::~Mtx()
 {
     // delete[] m_data;
-    free(m_data);
+    _mm_free(m_data);
 }
 
 void Mtx::generate(double min_val, double max_val)
