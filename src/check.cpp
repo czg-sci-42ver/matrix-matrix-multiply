@@ -64,14 +64,14 @@ void check()
     {
         a.generate();
         b.generate();
-        c.zero();
+        c.generate();
         c_basic.zero();
 
         dgemm_basic(n, a.data(), b.data(), c_basic.data());
 
         for(auto & e : all_dgemm)
         {
-            c.zero();
+            c.generate();
 
             (*e.m_f)(n, a.data(), b.data(), c.data());
             const double abs_sum = calc_abs_sum(n, c.data(), c_basic.data());

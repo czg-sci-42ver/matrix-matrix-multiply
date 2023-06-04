@@ -28,7 +28,7 @@ static timestamp_t call_dgemm(dgemm_function dgemm)
     {
         a.generate();
         b.generate();
-        c.zero();
+        c.generate();
 
         const timestamp_t t0 = get_timestamp();
         (*dgemm)(n, a.data(), b.data(), c.data());
