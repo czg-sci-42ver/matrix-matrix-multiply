@@ -8,7 +8,9 @@ Mtx::Mtx(uint32_t n)
     : m_n(n)
 {
     // m_data = new double[n * n];
-    /* why choose 64*/
+    /* why choose 64
+    why use _mm_malloc (because it is intel intrinsic, valid both on linux and windows ) see https://stackoverflow.com/questions/32612881/why-use-mm-malloc-as-opposed-to-aligned-malloc-alligned-alloc-or-posix-mem
+    */
     m_data = (double*) _mm_malloc (n * n * sizeof(double), 64);
     // m_data = (double*) _mm_malloc (n * n * sizeof(double), 32);
     // m_data = (double*) _mm_malloc (n * n * sizeof(double), 16);
