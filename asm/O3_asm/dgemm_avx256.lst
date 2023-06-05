@@ -1,0 +1,1198 @@
+   1              		.file	"dgemm_avx256.cpp"
+   2              		.intel_syntax noprefix
+   3              	# GNU C++17 (GCC) version 13.1.1 20230429 (x86_64-pc-linux-gnu)
+   4              	#	compiled by GNU C version 13.1.1 20230429, GMP version 6.2.1, MPFR version 4.2.0, MPC version 1.3
+   5              	
+   6              	# warning: MPFR header version 4.2.0 differs from library version 4.2.0-p9.
+   7              	# GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+   8              	# options passed: -march=znver2 -mmmx -mpopcnt -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mavx 
+   9              		.text
+  10              	.Ltext0:
+  11              		.file 0 "/home/czg/matrix-matrix-multiply/asm" "../src/dgemm_avx256.cpp"
+  12              		.p2align 4
+  13              		.globl	_Z12dgemm_avx256jPKdS0_Pd
+  15              	_Z12dgemm_avx256jPKdS0_Pd:
+  16              	.LVL0:
+  17              	.LFB6625:
+  18              		.file 1 "../src/dgemm_avx256.cpp"
+   1:../src/dgemm_avx256.cpp **** #include "dgemm_avx256.h"
+   2:../src/dgemm_avx256.cpp **** #include <x86intrin.h>
+   3:../src/dgemm_avx256.cpp **** 
+   4:../src/dgemm_avx256.cpp **** /*
+   5:../src/dgemm_avx256.cpp **** The declaration uses the __m256d datatype, which tells the compiler the variable will
+   6:../src/dgemm_avx256.cpp **** hold four double-precision floating-point values. The intrinsic _mm256_load_pd()
+   7:../src/dgemm_avx256.cpp **** uses AVX instructions to load four double-precision floating-point numbers in parallel (_pd)
+   8:../src/dgemm_avx256.cpp **** from the matrix C into c0. The address calculation C+i+j*n represents elementC[i+j*n].
+   9:../src/dgemm_avx256.cpp **** Symmetrically, the final step uses the intrinsic_mm256_store_pd() to store four double-precision
+  10:../src/dgemm_avx256.cpp **** floating-pointnumbers from c0 into the matrix C. As we’re going through four elements each iterat
+  11:../src/dgemm_avx256.cpp **** the outer for loop increments i by 4 instead of by 1.
+  12:../src/dgemm_avx256.cpp **** 
+  13:../src/dgemm_avx256.cpp **** Inside the loops, we first load four elements of A againusing _mm256_load_pd().
+  14:../src/dgemm_avx256.cpp **** To multiply these elements by one elementof B, we first use the intrinsic _mm256_broadcast_sd(), wh
+  15:../src/dgemm_avx256.cpp **** makes four identical copies of the scalar double precision number - in this case an element of B -
+  16:../src/dgemm_avx256.cpp **** in one of the YMM registers. We then use _mm256_mul_pd() to multiply the four double-precision resu
+  17:../src/dgemm_avx256.cpp **** in parallel. Finally, _mm256_add_pd() adds the four products to the four sums in c0.
+  18:../src/dgemm_avx256.cpp **** 
+  19:../src/dgemm_avx256.cpp **** For matrices of dimensions of 32 by 32, the unoptimized DGEMM (function called `basic`) runs at 1.7
+  20:../src/dgemm_avx256.cpp **** (FLoating point OperationsPer Second) on one core of a 2.6 GHz Intel Core i7 (Sandy Bridge).
+  21:../src/dgemm_avx256.cpp **** The optimized code (function called `avx256`) performs at 6.4 GigaFLOPS. The AVX-256 version
+  22:../src/dgemm_avx256.cpp **** is 3.85 times as fast, which is very close to the factor of 4.0 increase that you might hope for
+  23:../src/dgemm_avx256.cpp **** from performing four times as many operations at a time by using subword parallelism.
+  24:../src/dgemm_avx256.cpp **** */
+  25:../src/dgemm_avx256.cpp **** void dgemm_avx256(const uint32_t n, const double* A, const double* B, double* C)
+  26:../src/dgemm_avx256.cpp **** {
+  19              		.loc 1 26 1 view -0
+  20              		.cfi_startproc
+  27:../src/dgemm_avx256.cpp **** 
+  28:../src/dgemm_avx256.cpp ****     for( uint32_t i = 0; i < n; i += 4 )
+  21              		.loc 1 28 5 view .LVU1
+  22              	.LBB18:
+  23              		.loc 1 28 28 discriminator 1 view .LVU2
+  24 0000 85FF     		test	edi, edi	# n
+  25 0002 0F849800 		je	.L17	#,
+  25      0000
+  26              	.LBE18:
+  27              	# ../src/dgemm_avx256.cpp:26: {
+  26:../src/dgemm_avx256.cpp **** 
+  28              		.loc 1 26 1 is_stmt 0 view .LVU3
+  29 0008 55       		push	rbp	#
+  30              		.cfi_def_cfa_offset 16
+  31              		.cfi_offset 6, -16
+  32 0009 4989F1   		mov	r9, rsi	# A, tmp122
+  33 000c 4889E5   		mov	rbp, rsp	#,
+  34              		.cfi_def_cfa_register 6
+  35 000f 4157     		push	r15	#
+  36              		.cfi_offset 15, -24
+  37 0011 4531FF   		xor	r15d, r15d	# i
+  38 0014 4156     		push	r14	#
+  39              		.cfi_offset 14, -32
+  40 0016 4189FE   		mov	r14d, edi	# n, n
+  41 0019 4155     		push	r13	#
+  42              		.cfi_offset 13, -40
+  43 001b 4989CD   		mov	r13, rcx	# C, tmp124
+  44 001e 4154     		push	r12	#
+  45              		.cfi_offset 12, -48
+  46 0020 4989D4   		mov	r12, rdx	# B, tmp123
+  47 0023 53       		push	rbx	#
+  48              		.cfi_offset 3, -56
+  49              	.LVL1:
+  50 0024 66662E0F 		.p2align 4
+  50      1F840000 
+  50      00000090 
+  51              		.p2align 3
+  52              	.L2:
+  53              	.LBB42:
+  54              	.LBB19:
+  29:../src/dgemm_avx256.cpp ****     {
+  30:../src/dgemm_avx256.cpp ****         for( uint32_t j = 0; j < n; j++ ) 
+  55              		.loc 1 30 32 is_stmt 1 discriminator 1 view .LVU4
+  56              	.LBB20:
+  57              	# ../src/dgemm_avx256.cpp:32:             __m256d c0 = _mm256_load_pd(C + i + j * n); /* c0 = C[i][
+  31:../src/dgemm_avx256.cpp ****         {
+  32:../src/dgemm_avx256.cpp ****             __m256d c0 = _mm256_load_pd(C + i + j * n); /* c0 = C[i][j] */
+  58              		.loc 1 32 47 is_stmt 0 view .LVU5
+  59 0030 4489FE   		mov	esi, r15d	# _60, i
+  60 0033 4531D2   		xor	r10d, r10d	# ivtmp.20
+  61              	.LBE20:
+  62              	# ../src/dgemm_avx256.cpp:30:         for( uint32_t j = 0; j < n; j++ ) 
+  30:../src/dgemm_avx256.cpp ****         {
+  63              		.loc 1 30 23 view .LVU6
+  64 0036 31DB     		xor	ebx, ebx	# j
+  65              	.LVL2:
+  66 0038 0F1F8400 		.p2align 4
+  66      00000000 
+  67              		.p2align 3
+  68              	.L5:
+  69              	.LBB40:
+  70              		.loc 1 32 13 is_stmt 1 view .LVU7
+  71              	# ../src/dgemm_avx256.cpp:32:             __m256d c0 = _mm256_load_pd(C + i + j * n); /* c0 = C[i][
+  72              		.loc 1 32 47 is_stmt 0 view .LVU8
+  73 0040 4489D2   		mov	edx, r10d	# _3, ivtmp.20
+  74              	.LBB21:
+  75              	.LBB22:
+  76              	# /usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h:869:   return *(__m256d *)__P;
+  77              		.file 2 "/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h"
+   1:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Copyright (C) 2008-2023 Free Software Foundation, Inc.
+   2:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+   3:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    This file is part of GCC.
+   4:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+   5:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    GCC is free software; you can redistribute it and/or modify
+   6:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    it under the terms of the GNU General Public License as published by
+   7:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    the Free Software Foundation; either version 3, or (at your option)
+   8:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    any later version.
+   9:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  10:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    GCC is distributed in the hope that it will be useful,
+  11:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    but WITHOUT ANY WARRANTY; without even the implied warranty of
+  12:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  13:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    GNU General Public License for more details.
+  14:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  15:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    Under Section 7 of GPL version 3, you are granted additional
+  16:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    permissions described in the GCC Runtime Library Exception, version
+  17:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    3.1, as published by the Free Software Foundation.
+  18:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  19:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    You should have received a copy of the GNU General Public License and
+  20:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    a copy of the GCC Runtime Library Exception along with this program;
+  21:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+  22:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    <http://www.gnu.org/licenses/>.  */
+  23:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  24:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Implemented from the specification included in the Intel C++ Compiler
+  25:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    User Guide and Reference, version 11.0.  */
+  26:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  27:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifndef _IMMINTRIN_H_INCLUDED
+  28:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** # error "Never use <avxintrin.h> directly; include <immintrin.h> instead."
+  29:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+  30:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  31:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifndef _AVXINTRIN_H_INCLUDED
+  32:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _AVXINTRIN_H_INCLUDED
+  33:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  34:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifndef __AVX__
+  35:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #pragma GCC push_options
+  36:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #pragma GCC target("avx")
+  37:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define __DISABLE_AVX__
+  38:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif /* __AVX__ */
+  39:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  40:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Internal data types for implementing the intrinsics.  */
+  41:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef double __v4df __attribute__ ((__vector_size__ (32)));
+  42:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef float __v8sf __attribute__ ((__vector_size__ (32)));
+  43:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef long long __v4di __attribute__ ((__vector_size__ (32)));
+  44:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef unsigned long long __v4du __attribute__ ((__vector_size__ (32)));
+  45:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef int __v8si __attribute__ ((__vector_size__ (32)));
+  46:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef unsigned int __v8su __attribute__ ((__vector_size__ (32)));
+  47:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef short __v16hi __attribute__ ((__vector_size__ (32)));
+  48:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef unsigned short __v16hu __attribute__ ((__vector_size__ (32)));
+  49:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef char __v32qi __attribute__ ((__vector_size__ (32)));
+  50:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef signed char __v32qs __attribute__ ((__vector_size__ (32)));
+  51:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef unsigned char __v32qu __attribute__ ((__vector_size__ (32)));
+  52:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  53:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* The Intel API is flexible enough that we must allow aliasing with other
+  54:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    vector types, and their scalar components.  */
+  55:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef float __m256 __attribute__ ((__vector_size__ (32),
+  56:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				     __may_alias__));
+  57:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef long long __m256i __attribute__ ((__vector_size__ (32),
+  58:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					  __may_alias__));
+  59:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef double __m256d __attribute__ ((__vector_size__ (32),
+  60:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				       __may_alias__));
+  61:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  62:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Unaligned version of the same types.  */
+  63:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef float __m256_u __attribute__ ((__vector_size__ (32),
+  64:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				       __may_alias__,
+  65:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				       __aligned__ (1)));
+  66:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef long long __m256i_u __attribute__ ((__vector_size__ (32),
+  67:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					    __may_alias__,
+  68:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					    __aligned__ (1)));
+  69:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** typedef double __m256d_u __attribute__ ((__vector_size__ (32),
+  70:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					 __may_alias__,
+  71:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					 __aligned__ (1)));
+  72:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  73:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Compare predicates for scalar and packed compare intrinsics.  */
+  74:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+  75:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Equal (ordered, non-signaling)  */
+  76:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_EQ_OQ	0x00
+  77:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Less-than (ordered, signaling)  */
+  78:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_LT_OS	0x01
+  79:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Less-than-or-equal (ordered, signaling)  */
+  80:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_LE_OS	0x02
+  81:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Unordered (non-signaling)  */
+  82:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_UNORD_Q	0x03
+  83:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-equal (unordered, non-signaling)  */
+  84:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NEQ_UQ	0x04
+  85:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-less-than (unordered, signaling)  */
+  86:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NLT_US	0x05
+  87:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-less-than-or-equal (unordered, signaling)  */
+  88:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NLE_US	0x06
+  89:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Ordered (nonsignaling)   */
+  90:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_ORD_Q	0x07
+  91:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Equal (unordered, non-signaling)  */
+  92:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_EQ_UQ	0x08
+  93:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-greater-than-or-equal (unordered, signaling)  */
+  94:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NGE_US	0x09
+  95:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-greater-than (unordered, signaling)  */
+  96:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NGT_US	0x0a
+  97:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* False (ordered, non-signaling)  */
+  98:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_FALSE_OQ	0x0b
+  99:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-equal (ordered, non-signaling)  */
+ 100:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NEQ_OQ	0x0c
+ 101:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Greater-than-or-equal (ordered, signaling)  */
+ 102:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_GE_OS	0x0d
+ 103:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Greater-than (ordered, signaling)  */
+ 104:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_GT_OS	0x0e
+ 105:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* True (unordered, non-signaling)  */
+ 106:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_TRUE_UQ	0x0f
+ 107:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Equal (ordered, signaling)  */
+ 108:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_EQ_OS	0x10
+ 109:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Less-than (ordered, non-signaling)  */
+ 110:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_LT_OQ	0x11
+ 111:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Less-than-or-equal (ordered, non-signaling)  */
+ 112:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_LE_OQ	0x12
+ 113:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Unordered (signaling)  */
+ 114:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_UNORD_S	0x13
+ 115:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-equal (unordered, signaling)  */
+ 116:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NEQ_US	0x14
+ 117:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-less-than (unordered, non-signaling)  */
+ 118:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NLT_UQ	0x15
+ 119:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-less-than-or-equal (unordered, non-signaling)  */
+ 120:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NLE_UQ	0x16
+ 121:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Ordered (signaling)  */
+ 122:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_ORD_S	0x17
+ 123:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Equal (unordered, signaling)  */
+ 124:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_EQ_US	0x18
+ 125:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-greater-than-or-equal (unordered, non-signaling)  */
+ 126:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NGE_UQ	0x19
+ 127:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-greater-than (unordered, non-signaling)  */
+ 128:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NGT_UQ	0x1a
+ 129:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* False (ordered, signaling)  */
+ 130:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_FALSE_OS	0x1b
+ 131:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Not-equal (ordered, signaling)  */
+ 132:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_NEQ_OS	0x1c
+ 133:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Greater-than-or-equal (ordered, non-signaling)  */
+ 134:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_GE_OQ	0x1d
+ 135:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Greater-than (ordered, non-signaling)  */
+ 136:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_GT_OQ	0x1e
+ 137:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* True (unordered, signaling)  */
+ 138:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _CMP_TRUE_US	0x1f
+ 139:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 140:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 141:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_add_pd (__m256d __A, __m256d __B)
+ 142:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 143:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) ((__v4df)__A + (__v4df)__B);
+ 144:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 145:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 146:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 147:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_add_ps (__m256 __A, __m256 __B)
+ 148:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 149:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) ((__v8sf)__A + (__v8sf)__B);
+ 150:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 151:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 152:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 153:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_addsub_pd (__m256d __A, __m256d __B)
+ 154:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 155:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_addsubpd256 ((__v4df)__A, (__v4df)__B);
+ 156:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 157:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 158:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 159:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_addsub_ps (__m256 __A, __m256 __B)
+ 160:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 161:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_addsubps256 ((__v8sf)__A, (__v8sf)__B);
+ 162:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 163:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 164:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 165:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 166:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_and_pd (__m256d __A, __m256d __B)
+ 167:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 168:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_andpd256 ((__v4df)__A, (__v4df)__B);
+ 169:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 170:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 171:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 172:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_and_ps (__m256 __A, __m256 __B)
+ 173:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 174:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_andps256 ((__v8sf)__A, (__v8sf)__B);
+ 175:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 176:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 177:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 178:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_andnot_pd (__m256d __A, __m256d __B)
+ 179:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 180:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_andnpd256 ((__v4df)__A, (__v4df)__B);
+ 181:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 182:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 183:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 184:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_andnot_ps (__m256 __A, __m256 __B)
+ 185:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 186:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_andnps256 ((__v8sf)__A, (__v8sf)__B);
+ 187:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 188:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 189:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Double/single precision floating point blend instructions - select
+ 190:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    data from 2 sources using constant/variable mask.  */
+ 191:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 192:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __OPTIMIZE__
+ 193:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 194:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_blend_pd (__m256d __X, __m256d __Y, const int __M)
+ 195:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 196:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_blendpd256 ((__v4df)__X,
+ 197:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					      (__v4df)__Y,
+ 198:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					      __M);
+ 199:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 200:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 201:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 202:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_blend_ps (__m256 __X, __m256 __Y, const int __M)
+ 203:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 204:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_blendps256 ((__v8sf)__X,
+ 205:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					     (__v8sf)__Y,
+ 206:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					     __M);
+ 207:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 208:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #else
+ 209:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_blend_pd(X, Y, M)					\
+ 210:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256d) __builtin_ia32_blendpd256 ((__v4df)(__m256d)(X),		\
+ 211:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					(__v4df)(__m256d)(Y), (int)(M)))
+ 212:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 213:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_blend_ps(X, Y, M)					\
+ 214:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256) __builtin_ia32_blendps256 ((__v8sf)(__m256)(X),		\
+ 215:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				       (__v8sf)(__m256)(Y), (int)(M)))
+ 216:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 217:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 218:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 219:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_blendv_pd (__m256d __X, __m256d __Y, __m256d __M)
+ 220:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 221:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_blendvpd256 ((__v4df)__X,
+ 222:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					       (__v4df)__Y,
+ 223:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					       (__v4df)__M);
+ 224:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 225:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 226:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 227:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_blendv_ps (__m256 __X, __m256 __Y, __m256 __M)
+ 228:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 229:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_blendvps256 ((__v8sf)__X,
+ 230:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					      (__v8sf)__Y,
+ 231:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					      (__v8sf)__M);
+ 232:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 233:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 234:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 235:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_div_pd (__m256d __A, __m256d __B)
+ 236:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 237:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) ((__v4df)__A / (__v4df)__B);
+ 238:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 239:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 240:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 241:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_div_ps (__m256 __A, __m256 __B)
+ 242:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 243:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) ((__v8sf)__A / (__v8sf)__B);
+ 244:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 245:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 246:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** /* Dot product instructions with mask-defined summing and zeroing parts
+ 247:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    of result.  */
+ 248:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 249:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __OPTIMIZE__
+ 250:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 251:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_dp_ps (__m256 __X, __m256 __Y, const int __M)
+ 252:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 253:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_dpps256 ((__v8sf)__X,
+ 254:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					  (__v8sf)__Y,
+ 255:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					  __M);
+ 256:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 257:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #else
+ 258:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_dp_ps(X, Y, M)						\
+ 259:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256) __builtin_ia32_dpps256 ((__v8sf)(__m256)(X),		\
+ 260:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				    (__v8sf)(__m256)(Y), (int)(M)))
+ 261:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 262:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 263:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 264:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_hadd_pd (__m256d __X, __m256d __Y)
+ 265:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 266:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_haddpd256 ((__v4df)__X, (__v4df)__Y);
+ 267:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 268:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 269:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 270:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_hadd_ps (__m256 __X, __m256 __Y)
+ 271:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 272:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_haddps256 ((__v8sf)__X, (__v8sf)__Y);
+ 273:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 274:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 275:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 276:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_hsub_pd (__m256d __X, __m256d __Y)
+ 277:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 278:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_hsubpd256 ((__v4df)__X, (__v4df)__Y);
+ 279:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 280:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 281:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 282:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_hsub_ps (__m256 __X, __m256 __Y)
+ 283:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 284:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_hsubps256 ((__v8sf)__X, (__v8sf)__Y);
+ 285:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 286:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 287:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 288:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_max_pd (__m256d __A, __m256d __B)
+ 289:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 290:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_maxpd256 ((__v4df)__A, (__v4df)__B);
+ 291:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 292:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 293:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 294:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_max_ps (__m256 __A, __m256 __B)
+ 295:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 296:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_maxps256 ((__v8sf)__A, (__v8sf)__B);
+ 297:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 298:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 299:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 300:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_min_pd (__m256d __A, __m256d __B)
+ 301:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 302:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_minpd256 ((__v4df)__A, (__v4df)__B);
+ 303:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 304:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 305:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 306:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_min_ps (__m256 __A, __m256 __B)
+ 307:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 308:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_minps256 ((__v8sf)__A, (__v8sf)__B);
+ 309:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 310:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 311:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 312:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_mul_pd (__m256d __A, __m256d __B)
+ 313:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 314:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) ((__v4df)__A * (__v4df)__B);
+ 315:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 316:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 317:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 318:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_mul_ps (__m256 __A, __m256 __B)
+ 319:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 320:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) ((__v8sf)__A * (__v8sf)__B);
+ 321:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 322:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 323:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 324:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_or_pd (__m256d __A, __m256d __B)
+ 325:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 326:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_orpd256 ((__v4df)__A, (__v4df)__B);
+ 327:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 328:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 329:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 330:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_or_ps (__m256 __A, __m256 __B)
+ 331:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 332:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_orps256 ((__v8sf)__A, (__v8sf)__B);
+ 333:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 334:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 335:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __OPTIMIZE__
+ 336:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 337:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_shuffle_pd (__m256d __A, __m256d __B, const int __mask)
+ 338:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 339:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_shufpd256 ((__v4df)__A, (__v4df)__B,
+ 340:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					     __mask);
+ 341:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 342:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 343:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 344:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_shuffle_ps (__m256 __A, __m256 __B, const int __mask)
+ 345:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 346:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_shufps256 ((__v8sf)__A, (__v8sf)__B,
+ 347:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					    __mask);
+ 348:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 349:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #else
+ 350:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_shuffle_pd(A, B, N)					\
+ 351:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256d)__builtin_ia32_shufpd256 ((__v4df)(__m256d)(A),		\
+ 352:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				      (__v4df)(__m256d)(B), (int)(N)))
+ 353:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 354:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_shuffle_ps(A, B, N)					\
+ 355:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256) __builtin_ia32_shufps256 ((__v8sf)(__m256)(A),		\
+ 356:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				      (__v8sf)(__m256)(B), (int)(N)))
+ 357:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 358:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 359:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 360:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_sub_pd (__m256d __A, __m256d __B)
+ 361:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 362:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) ((__v4df)__A - (__v4df)__B);
+ 363:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 364:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 365:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 366:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_sub_ps (__m256 __A, __m256 __B)
+ 367:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 368:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) ((__v8sf)__A - (__v8sf)__B);
+ 369:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 370:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 371:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 372:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_xor_pd (__m256d __A, __m256d __B)
+ 373:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 374:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_xorpd256 ((__v4df)__A, (__v4df)__B);
+ 375:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 376:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 377:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 378:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_xor_ps (__m256 __A, __m256 __B)
+ 379:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 380:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_xorps256 ((__v8sf)__A, (__v8sf)__B);
+ 381:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 382:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 383:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __OPTIMIZE__
+ 384:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 385:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm_cmp_pd (__m128d __X, __m128d __Y, const int __P)
+ 386:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 387:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128d) __builtin_ia32_cmppd ((__v2df)__X, (__v2df)__Y, __P);
+ 388:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 389:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 390:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 391:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm_cmp_ps (__m128 __X, __m128 __Y, const int __P)
+ 392:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 393:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128) __builtin_ia32_cmpps ((__v4sf)__X, (__v4sf)__Y, __P);
+ 394:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 395:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 396:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 397:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cmp_pd (__m256d __X, __m256d __Y, const int __P)
+ 398:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 399:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_cmppd256 ((__v4df)__X, (__v4df)__Y,
+ 400:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					    __P);
+ 401:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 402:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 403:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 404:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cmp_ps (__m256 __X, __m256 __Y, const int __P)
+ 405:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 406:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_cmpps256 ((__v8sf)__X, (__v8sf)__Y,
+ 407:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					   __P);
+ 408:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 409:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 410:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 411:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm_cmp_sd (__m128d __X, __m128d __Y, const int __P)
+ 412:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 413:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128d) __builtin_ia32_cmpsd ((__v2df)__X, (__v2df)__Y, __P);
+ 414:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 415:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 416:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 417:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm_cmp_ss (__m128 __X, __m128 __Y, const int __P)
+ 418:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 419:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128) __builtin_ia32_cmpss ((__v4sf)__X, (__v4sf)__Y, __P);
+ 420:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 421:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #else
+ 422:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm_cmp_pd(X, Y, P)						\
+ 423:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m128d) __builtin_ia32_cmppd ((__v2df)(__m128d)(X),		\
+ 424:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				   (__v2df)(__m128d)(Y), (int)(P)))
+ 425:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 426:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm_cmp_ps(X, Y, P)						\
+ 427:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m128) __builtin_ia32_cmpps ((__v4sf)(__m128)(X),			\
+ 428:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				  (__v4sf)(__m128)(Y), (int)(P)))
+ 429:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 430:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_cmp_pd(X, Y, P)						\
+ 431:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256d) __builtin_ia32_cmppd256 ((__v4df)(__m256d)(X),		\
+ 432:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				      (__v4df)(__m256d)(Y), (int)(P)))
+ 433:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 434:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_cmp_ps(X, Y, P)						\
+ 435:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256) __builtin_ia32_cmpps256 ((__v8sf)(__m256)(X),		\
+ 436:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				     (__v8sf)(__m256)(Y), (int)(P)))
+ 437:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 438:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm_cmp_sd(X, Y, P)						\
+ 439:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m128d) __builtin_ia32_cmpsd ((__v2df)(__m128d)(X),		\
+ 440:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				   (__v2df)(__m128d)(Y), (int)(P)))
+ 441:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 442:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm_cmp_ss(X, Y, P)						\
+ 443:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m128) __builtin_ia32_cmpss ((__v4sf)(__m128)(X),			\
+ 444:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 				  (__v4sf)(__m128)(Y), (int)(P)))
+ 445:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 446:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 447:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline int __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 448:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cvtsi256_si32 (__m256i __A)
+ 449:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 450:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __v8si __B = (__v8si) __A;
+ 451:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return __B[0];
+ 452:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 453:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 454:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 455:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cvtepi32_pd (__m128i __A)
+ 456:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 457:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d)__builtin_ia32_cvtdq2pd256 ((__v4si) __A);
+ 458:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 459:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 460:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 461:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cvtepi32_ps (__m256i __A)
+ 462:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 463:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256)__builtin_ia32_cvtdq2ps256 ((__v8si) __A);
+ 464:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 465:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 466:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 467:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cvtpd_ps (__m256d __A)
+ 468:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 469:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128)__builtin_ia32_cvtpd2ps256 ((__v4df) __A);
+ 470:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 471:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 472:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 473:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cvtps_epi32 (__m256 __A)
+ 474:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 475:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256i)__builtin_ia32_cvtps2dq256 ((__v8sf) __A);
+ 476:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 477:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 478:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 479:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cvtps_pd (__m128 __A)
+ 480:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 481:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d)__builtin_ia32_cvtps2pd256 ((__v4sf) __A);
+ 482:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 483:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 484:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 485:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cvttpd_epi32 (__m256d __A)
+ 486:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 487:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128i)__builtin_ia32_cvttpd2dq256 ((__v4df) __A);
+ 488:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 489:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 490:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 491:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cvtpd_epi32 (__m256d __A)
+ 492:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 493:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128i)__builtin_ia32_cvtpd2dq256 ((__v4df) __A);
+ 494:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 495:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 496:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 497:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cvttps_epi32 (__m256 __A)
+ 498:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 499:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256i)__builtin_ia32_cvttps2dq256 ((__v8sf) __A);
+ 500:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 501:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 502:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline double
+ 503:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+ 504:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cvtsd_f64 (__m256d __A)
+ 505:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 506:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return __A[0];
+ 507:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 508:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 509:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline float
+ 510:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+ 511:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_cvtss_f32 (__m256 __A)
+ 512:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 513:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return __A[0];
+ 514:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 515:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 516:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __OPTIMIZE__
+ 517:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 518:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_extractf128_pd (__m256d __X, const int __N)
+ 519:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 520:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128d) __builtin_ia32_vextractf128_pd256 ((__v4df)__X, __N);
+ 521:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 522:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 523:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 524:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_extractf128_ps (__m256 __X, const int __N)
+ 525:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 526:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128) __builtin_ia32_vextractf128_ps256 ((__v8sf)__X, __N);
+ 527:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 528:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 529:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 530:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_extractf128_si256 (__m256i __X, const int __N)
+ 531:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 532:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128i) __builtin_ia32_vextractf128_si256 ((__v8si)__X, __N);
+ 533:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 534:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 535:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline int __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 536:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_extract_epi32 (__m256i __X, int const __N)
+ 537:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 538:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __m128i __Y = _mm256_extractf128_si256 (__X, __N >> 2);
+ 539:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return _mm_extract_epi32 (__Y, __N % 4);
+ 540:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 541:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 542:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline int __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 543:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_extract_epi16 (__m256i __X, int const __N)
+ 544:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 545:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __m128i __Y = _mm256_extractf128_si256 (__X, __N >> 3);
+ 546:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return _mm_extract_epi16 (__Y, __N % 8);
+ 547:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 548:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 549:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline int __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 550:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_extract_epi8 (__m256i __X, int const __N)
+ 551:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 552:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __m128i __Y = _mm256_extractf128_si256 (__X, __N >> 4);
+ 553:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return _mm_extract_epi8 (__Y, __N % 16);
+ 554:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 555:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 556:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __x86_64__
+ 557:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline long long  __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 558:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_extract_epi64 (__m256i __X, const int __N)
+ 559:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 560:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __m128i __Y = _mm256_extractf128_si256 (__X, __N >> 1);
+ 561:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return _mm_extract_epi64 (__Y, __N % 2);
+ 562:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 563:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 564:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #else
+ 565:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_extractf128_pd(X, N)					\
+ 566:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m128d) __builtin_ia32_vextractf128_pd256 ((__v4df)(__m256d)(X),	\
+ 567:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						(int)(N)))
+ 568:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 569:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_extractf128_ps(X, N)					\
+ 570:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m128) __builtin_ia32_vextractf128_ps256 ((__v8sf)(__m256)(X),	\
+ 571:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					       (int)(N)))
+ 572:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 573:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_extractf128_si256(X, N)					\
+ 574:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m128i) __builtin_ia32_vextractf128_si256 ((__v8si)(__m256i)(X),	\
+ 575:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						(int)(N)))
+ 576:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 577:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_extract_epi32(X, N)					\
+ 578:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   (__extension__							\
+ 579:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    ({									\
+ 580:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __m128i __Y = _mm256_extractf128_si256 ((X), (N) >> 2);		\
+ 581:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       _mm_extract_epi32 (__Y, (N) % 4);					\
+ 582:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****     }))
+ 583:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 584:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_extract_epi16(X, N)					\
+ 585:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   (__extension__							\
+ 586:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    ({									\
+ 587:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __m128i __Y = _mm256_extractf128_si256 ((X), (N) >> 3);		\
+ 588:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       _mm_extract_epi16 (__Y, (N) % 8);					\
+ 589:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****     }))
+ 590:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 591:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_extract_epi8(X, N)					\
+ 592:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   (__extension__							\
+ 593:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    ({									\
+ 594:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __m128i __Y = _mm256_extractf128_si256 ((X), (N) >> 4);		\
+ 595:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       _mm_extract_epi8 (__Y, (N) % 16);					\
+ 596:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****     }))
+ 597:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 598:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __x86_64__
+ 599:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_extract_epi64(X, N)					\
+ 600:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   (__extension__							\
+ 601:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    ({									\
+ 602:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __m128i __Y = _mm256_extractf128_si256 ((X), (N) >> 1);		\
+ 603:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       _mm_extract_epi64 (__Y, (N) % 2);					\
+ 604:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****     }))
+ 605:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 606:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 607:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 608:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 609:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_zeroall (void)
+ 610:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 611:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __builtin_ia32_vzeroall ();
+ 612:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 613:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 614:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 615:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_zeroupper (void)
+ 616:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 617:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __builtin_ia32_vzeroupper ();
+ 618:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 619:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 620:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 621:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm_permutevar_pd (__m128d __A, __m128i __C)
+ 622:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 623:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128d) __builtin_ia32_vpermilvarpd ((__v2df)__A,
+ 624:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						(__v2di)__C);
+ 625:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 626:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 627:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 628:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_permutevar_pd (__m256d __A, __m256i __C)
+ 629:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 630:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_vpermilvarpd256 ((__v4df)__A,
+ 631:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						   (__v4di)__C);
+ 632:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 633:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 634:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 635:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm_permutevar_ps (__m128 __A, __m128i __C)
+ 636:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 637:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128) __builtin_ia32_vpermilvarps ((__v4sf)__A,
+ 638:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					       (__v4si)__C);
+ 639:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 640:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 641:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 642:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_permutevar_ps (__m256 __A, __m256i __C)
+ 643:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 644:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_vpermilvarps256 ((__v8sf)__A,
+ 645:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						  (__v8si)__C);
+ 646:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 647:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 648:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __OPTIMIZE__
+ 649:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 650:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm_permute_pd (__m128d __X, const int __C)
+ 651:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 652:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128d) __builtin_ia32_vpermilpd ((__v2df)__X, __C);
+ 653:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 654:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 655:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 656:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_permute_pd (__m256d __X, const int __C)
+ 657:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 658:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_vpermilpd256 ((__v4df)__X, __C);
+ 659:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 660:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 661:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 662:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm_permute_ps (__m128 __X, const int __C)
+ 663:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 664:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128) __builtin_ia32_vpermilps ((__v4sf)__X, __C);
+ 665:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 666:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 667:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 668:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_permute_ps (__m256 __X, const int __C)
+ 669:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 670:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_vpermilps256 ((__v8sf)__X, __C);
+ 671:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 672:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #else
+ 673:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm_permute_pd(X, C)						\
+ 674:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m128d) __builtin_ia32_vpermilpd ((__v2df)(__m128d)(X), (int)(C)))
+ 675:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 676:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_permute_pd(X, C)						\
+ 677:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256d) __builtin_ia32_vpermilpd256 ((__v4df)(__m256d)(X),	(int)(C)))
+ 678:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 679:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm_permute_ps(X, C)						\
+ 680:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m128) __builtin_ia32_vpermilps ((__v4sf)(__m128)(X), (int)(C)))
+ 681:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 682:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_permute_ps(X, C)						\
+ 683:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256) __builtin_ia32_vpermilps256 ((__v8sf)(__m256)(X), (int)(C)))
+ 684:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 685:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 686:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __OPTIMIZE__
+ 687:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 688:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_permute2f128_pd (__m256d __X, __m256d __Y, const int __C)
+ 689:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 690:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_vperm2f128_pd256 ((__v4df)__X,
+ 691:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						    (__v4df)__Y,
+ 692:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						    __C);
+ 693:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 694:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 695:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 696:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_permute2f128_ps (__m256 __X, __m256 __Y, const int __C)
+ 697:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 698:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_vperm2f128_ps256 ((__v8sf)__X,
+ 699:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						   (__v8sf)__Y,
+ 700:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						   __C);
+ 701:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 702:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 703:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 704:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_permute2f128_si256 (__m256i __X, __m256i __Y, const int __C)
+ 705:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 706:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256i) __builtin_ia32_vperm2f128_si256 ((__v8si)__X,
+ 707:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						    (__v8si)__Y,
+ 708:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						    __C);
+ 709:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 710:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #else
+ 711:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_permute2f128_pd(X, Y, C)					\
+ 712:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256d) __builtin_ia32_vperm2f128_pd256 ((__v4df)(__m256d)(X),	\
+ 713:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					      (__v4df)(__m256d)(Y),	\
+ 714:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					      (int)(C)))
+ 715:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 716:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_permute2f128_ps(X, Y, C)					\
+ 717:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256) __builtin_ia32_vperm2f128_ps256 ((__v8sf)(__m256)(X),	\
+ 718:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					     (__v8sf)(__m256)(Y),	\
+ 719:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					     (int)(C)))
+ 720:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 721:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_permute2f128_si256(X, Y, C)				\
+ 722:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256i) __builtin_ia32_vperm2f128_si256 ((__v8si)(__m256i)(X),	\
+ 723:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					      (__v8si)(__m256i)(Y),	\
+ 724:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					      (int)(C)))
+ 725:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 726:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 727:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m128 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 728:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm_broadcast_ss (float const *__X)
+ 729:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 730:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m128) __builtin_ia32_vbroadcastss (__X);
+ 731:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 732:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 733:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 734:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_broadcast_sd (double const *__X)
+ 735:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 736:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_vbroadcastsd256 (__X);
+ 737:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 738:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 739:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 740:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_broadcast_ss (float const *__X)
+ 741:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 742:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_vbroadcastss256 (__X);
+ 743:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 744:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 745:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 746:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_broadcast_pd (__m128d const *__X)
+ 747:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 748:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_vbroadcastf128_pd256 (__X);
+ 749:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 750:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 751:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 752:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_broadcast_ps (__m128 const *__X)
+ 753:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 754:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_vbroadcastf128_ps256 (__X);
+ 755:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 756:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 757:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __OPTIMIZE__
+ 758:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 759:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_insertf128_pd (__m256d __X, __m128d __Y, const int __O)
+ 760:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 761:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256d) __builtin_ia32_vinsertf128_pd256 ((__v4df)__X,
+ 762:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						     (__v2df)__Y,
+ 763:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						     __O);
+ 764:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 765:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 766:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 767:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_insertf128_ps (__m256 __X, __m128 __Y, const int __O)
+ 768:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 769:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256) __builtin_ia32_vinsertf128_ps256 ((__v8sf)__X,
+ 770:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						    (__v4sf)__Y,
+ 771:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						    __O);
+ 772:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 773:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 774:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 775:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_insertf128_si256 (__m256i __X, __m128i __Y, const int __O)
+ 776:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 777:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return (__m256i) __builtin_ia32_vinsertf128_si256 ((__v8si)__X,
+ 778:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						     (__v4si)__Y,
+ 779:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 						     __O);
+ 780:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 781:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 782:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 783:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_insert_epi32 (__m256i __X, int __D, int const __N)
+ 784:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 785:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __m128i __Y = _mm256_extractf128_si256 (__X, __N >> 2);
+ 786:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __Y = _mm_insert_epi32 (__Y, __D, __N % 4);
+ 787:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return _mm256_insertf128_si256 (__X, __Y, __N >> 2);
+ 788:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 789:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 790:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 791:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_insert_epi16 (__m256i __X, int __D, int const __N)
+ 792:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 793:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __m128i __Y = _mm256_extractf128_si256 (__X, __N >> 3);
+ 794:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __Y = _mm_insert_epi16 (__Y, __D, __N % 8);
+ 795:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return _mm256_insertf128_si256 (__X, __Y, __N >> 3);
+ 796:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 797:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 798:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 799:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_insert_epi8 (__m256i __X, int __D, int const __N)
+ 800:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 801:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __m128i __Y = _mm256_extractf128_si256 (__X, __N >> 4);
+ 802:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __Y = _mm_insert_epi8 (__Y, __D, __N % 16);
+ 803:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return _mm256_insertf128_si256 (__X, __Y, __N >> 4);
+ 804:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 805:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 806:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __x86_64__
+ 807:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 808:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_insert_epi64 (__m256i __X, long long __D, int const __N)
+ 809:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 810:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __m128i __Y = _mm256_extractf128_si256 (__X, __N >> 1);
+ 811:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   __Y = _mm_insert_epi64 (__Y, __D, __N % 2);
+ 812:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return _mm256_insertf128_si256 (__X, __Y, __N >> 1);
+ 813:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 814:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 815:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #else
+ 816:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_insertf128_pd(X, Y, O)					\
+ 817:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256d) __builtin_ia32_vinsertf128_pd256 ((__v4df)(__m256d)(X),	\
+ 818:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					       (__v2df)(__m128d)(Y),	\
+ 819:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					       (int)(O)))
+ 820:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 821:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_insertf128_ps(X, Y, O)					\
+ 822:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256) __builtin_ia32_vinsertf128_ps256 ((__v8sf)(__m256)(X),	\
+ 823:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					      (__v4sf)(__m128)(Y),  	\
+ 824:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					      (int)(O)))
+ 825:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 826:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_insertf128_si256(X, Y, O)				\
+ 827:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   ((__m256i) __builtin_ia32_vinsertf128_si256 ((__v8si)(__m256i)(X),	\
+ 828:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					       (__v4si)(__m128i)(Y),	\
+ 829:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 					       (int)(O)))
+ 830:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 831:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_insert_epi32(X, D, N)					\
+ 832:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   (__extension__							\
+ 833:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    ({									\
+ 834:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __m128i __Y = _mm256_extractf128_si256 ((X), (N) >> 2);		\
+ 835:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __Y = _mm_insert_epi32 (__Y, (D), (N) % 4);			\
+ 836:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       _mm256_insertf128_si256 ((X), __Y, (N) >> 2);			\
+ 837:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****     }))
+ 838:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 839:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_insert_epi16(X, D, N)					\
+ 840:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   (__extension__							\
+ 841:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    ({									\
+ 842:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __m128i __Y = _mm256_extractf128_si256 ((X), (N) >> 3);		\
+ 843:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __Y = _mm_insert_epi16 (__Y, (D), (N) % 8);			\
+ 844:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       _mm256_insertf128_si256 ((X), __Y, (N) >> 3);			\
+ 845:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****     }))
+ 846:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 847:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_insert_epi8(X, D, N)					\
+ 848:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   (__extension__							\
+ 849:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    ({									\
+ 850:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __m128i __Y = _mm256_extractf128_si256 ((X), (N) >> 4);		\
+ 851:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __Y = _mm_insert_epi8 (__Y, (D), (N) % 16);			\
+ 852:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       _mm256_insertf128_si256 ((X), __Y, (N) >> 4);			\
+ 853:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****     }))
+ 854:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 855:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #ifdef __x86_64__
+ 856:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #define _mm256_insert_epi64(X, D, N)					\
+ 857:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   (__extension__							\
+ 858:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****    ({									\
+ 859:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __m128i __Y = _mm256_extractf128_si256 ((X), (N) >> 1);		\
+ 860:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       __Y = _mm_insert_epi64 (__Y, (D), (N) % 2);			\
+ 861:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****       _mm256_insertf128_si256 ((X), __Y, (N) >> 1);			\
+ 862:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****     }))
+ 863:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 864:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** #endif
+ 865:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 866:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 867:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_load_pd (double const *__P)
+ 868:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 869:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   return *(__m256d *)__P;
+  78              		.loc 2 869 22 view .LVU9
+  79 0043 31C9     		xor	ecx, ecx	# ivtmp.15
+  80              	.LBE22:
+  81              	.LBE21:
+  82              	# ../src/dgemm_avx256.cpp:32:             __m256d c0 = _mm256_load_pd(C + i + j * n); /* c0 = C[i][
+  83              		.loc 1 32 47 view .LVU10
+  84 0045 488D0432 		lea	rax, [rdx+rsi]	# tmp111,
+  85 0049 4D8D5CC5 		lea	r11, 0[r13+rax*8]	# _6,
+  85      00
+  86              	.LVL3:
+  87              	.LBB24:
+  88              	.LBI21:
+ 867:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+  89              		.loc 2 867 1 is_stmt 1 view .LVU11
+  90              	.LBB23:
+  91              		.loc 2 869 3 view .LVU12
+  92 004e 498D04D4 		lea	rax, [r12+rdx*8]	# ivtmp.14,
+  93 0052 4C01F2   		add	rdx, r14	# tmp115, n
+  94              	# /usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h:869:   return *(__m256d *)__P;
+  95              		.loc 2 869 22 is_stmt 0 view .LVU13
+  96 0055 C4C17D28 		vmovapd	ymm0, YMMWORD PTR [r11]	# c0, MEM[(__m256d * {ref-all})_6]
+  96      03
+  97              	.LVL4:
+  98              		.loc 2 869 22 view .LVU14
+  99              	.LBE23:
+ 100              	.LBE24:
+  33:../src/dgemm_avx256.cpp ****             for( uint32_t k = 0; k < n; k++ )
+ 101              		.loc 1 33 13 is_stmt 1 view .LVU15
+ 102              	.LBB25:
+ 103              		.loc 1 33 36 discriminator 1 view .LVU16
+ 104 005a 4D8D04D4 		lea	r8, [r12+rdx*8]	# _43,
+ 105              	.LVL5:
+ 106 005e 6690     		.p2align 4
+ 107              		.p2align 3
+ 108              	.L4:
+  34:../src/dgemm_avx256.cpp ****             {
+  35:../src/dgemm_avx256.cpp ****                 c0 = _mm256_add_pd(c0, /* c0 += A[i][k]*B[k][j] */
+ 109              		.loc 1 35 17 view .LVU17
+ 110              	.LBB26:
+ 111              	.LBI26:
+ 734:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 112              		.loc 2 734 1 view .LVU18
+ 113              	.LBB27:
+ 736:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 114              		.loc 2 736 3 view .LVU19
+ 115              	.LBE27:
+ 116              	.LBE26:
+ 117              	# ../src/dgemm_avx256.cpp:36:                         _mm256_mul_pd( _mm256_load_pd(A + i + k * n),
+  36:../src/dgemm_avx256.cpp ****                         _mm256_mul_pd( _mm256_load_pd(A + i + k * n), _mm256_broadcast_sd(B + k + j
+ 118              		.loc 1 36 61 is_stmt 0 view .LVU20
+ 119 0060 89CA     		mov	edx, ecx	# ivtmp.15, ivtmp.15
+ 120              	.LBB29:
+ 121              	.LBB28:
+ 122              	# /usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h:736:   return (__m256d) __builtin_ia3
+ 736:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 123              		.loc 2 736 10 view .LVU21
+ 124 0062 C4E27D19 		vbroadcastsd	ymm1, QWORD PTR [rax]	# tmp117,* ivtmp.14
+ 124      08
+ 125              	.LVL6:
+ 736:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 126              		.loc 2 736 10 view .LVU22
+ 127              	.LBE28:
+ 128              	.LBE29:
+ 129              	.LBB30:
+ 130              	.LBI30:
+ 867:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 131              		.loc 2 867 1 is_stmt 1 view .LVU23
+ 132              	.LBB31:
+ 133              		.loc 2 869 3 view .LVU24
+ 134              		.loc 2 869 3 is_stmt 0 view .LVU25
+ 135              	.LBE31:
+ 136              	.LBE30:
+ 137              	.LBB32:
+ 138              	.LBI32:
+ 141:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 139              		.loc 2 141 1 is_stmt 1 view .LVU26
+ 140              	.LBB33:
+ 143:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 141              		.loc 2 143 3 view .LVU27
+ 142              	.LBE33:
+ 143              	.LBE32:
+ 144              	# ../src/dgemm_avx256.cpp:33:             for( uint32_t k = 0; k < n; k++ )
+  33:../src/dgemm_avx256.cpp ****             {
+ 145              		.loc 1 33 36 is_stmt 0 discriminator 1 view .LVU28
+ 146 0067 4883C008 		add	rax, 8	# ivtmp.14,
+ 147 006b 01F9     		add	ecx, edi	# ivtmp.15, n
+ 148              	.LVL7:
+ 149              	# ../src/dgemm_avx256.cpp:36:                         _mm256_mul_pd( _mm256_load_pd(A + i + k * n),
+ 150              		.loc 1 36 61 view .LVU29
+ 151 006d 4801F2   		add	rdx, rsi	# tmp119, _60
+ 152              	.LVL8:
+ 153              	.LBB35:
+ 154              	.LBB34:
+ 155              	# /usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h:143:   return (__m256d) ((__v4df)__A 
+ 143:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 156              		.loc 2 143 46 view .LVU30
+ 157 0070 C4C2F5B8 		vfmadd231pd	ymm0, ymm1, YMMWORD PTR [r9+rdx*8]	# c0, tmp117, MEM[(__m256d * {ref-all})_15]
+ 157      04D1
+ 158              	.LVL9:
+ 143:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 159              		.loc 2 143 46 view .LVU31
+ 160              	.LBE34:
+ 161              	.LBE35:
+  33:../src/dgemm_avx256.cpp ****             {
+ 162              		.loc 1 33 13 is_stmt 1 discriminator 3 view .LVU32
+  33:../src/dgemm_avx256.cpp ****             {
+ 163              		.loc 1 33 36 discriminator 1 view .LVU33
+ 164 0076 4939C0   		cmp	r8, rax	# _43, ivtmp.14
+ 165 0079 75E5     		jne	.L4	#,
+ 166              	.LBE25:
+  37:../src/dgemm_avx256.cpp ****             }
+  38:../src/dgemm_avx256.cpp **** 
+  39:../src/dgemm_avx256.cpp ****             _mm256_store_pd(C+i+j*n, c0); /* C[i][j] = c0 */
+ 167              		.loc 1 39 13 view .LVU34
+ 168              	.LVL10:
+ 169              	.LBB36:
+ 170              	.LBI36:
+ 870:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** }
+ 871:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** 
+ 872:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** extern __inline void __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ 873:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** _mm256_store_pd (double *__P, __m256d __A)
+ 171              		.loc 2 873 1 view .LVU35
+ 172              	.LBB37:
+ 874:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h **** {
+ 875:/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h ****   *(__m256d *)__P = __A;
+ 173              		.loc 2 875 3 view .LVU36
+ 174              	.LBE37:
+ 175              	.LBE36:
+ 176              	.LBE40:
+ 177              	# ../src/dgemm_avx256.cpp:30:         for( uint32_t j = 0; j < n; j++ ) 
+  30:../src/dgemm_avx256.cpp ****         {
+ 178              		.loc 1 30 9 is_stmt 0 discriminator 2 view .LVU37
+ 179 007b FFC3     		inc	ebx	# j
+ 180              	.LVL11:
+ 181              	.LBB41:
+ 182              	.LBB39:
+ 183              	.LBB38:
+ 184              	# /usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/avxintrin.h:875:   *(__m256d *)__P = __A;
+ 185              		.loc 2 875 19 view .LVU38
+ 186 007d C4C17D29 		vmovapd	YMMWORD PTR [r11], ymm0	# MEM[(__m256d * {ref-all})_6], c0
+ 186      03
+ 187              	.LVL12:
+ 188              		.loc 2 875 19 view .LVU39
+ 189              	.LBE38:
+ 190              	.LBE39:
+ 191              	.LBE41:
+  30:../src/dgemm_avx256.cpp ****         {
+ 192              		.loc 1 30 9 is_stmt 1 discriminator 2 view .LVU40
+  30:../src/dgemm_avx256.cpp ****         {
+ 193              		.loc 1 30 32 discriminator 1 view .LVU41
+ 194 0082 4101FA   		add	r10d, edi	# ivtmp.20, n
+ 195 0085 39DF     		cmp	edi, ebx	# n, j
+ 196 0087 75B7     		jne	.L5	#,
+ 197              	.LBE19:
+  28:../src/dgemm_avx256.cpp ****     {
+ 198              		.loc 1 28 5 discriminator 2 view .LVU42
+ 199              	# ../src/dgemm_avx256.cpp:28:     for( uint32_t i = 0; i < n; i += 4 )
+  28:../src/dgemm_avx256.cpp ****     {
+ 200              		.loc 1 28 35 is_stmt 0 discriminator 2 view .LVU43
+ 201 0089 4183C704 		add	r15d, 4	# i,
+ 202              	.LVL13:
+  28:../src/dgemm_avx256.cpp ****     {
+ 203              		.loc 1 28 28 is_stmt 1 discriminator 1 view .LVU44
+ 204 008d 4139FF   		cmp	r15d, edi	# i, n
+ 205 0090 729E     		jb	.L2	#,
+ 206 0092 C5F877   		vzeroupper
+ 207              	.LVL14:
+ 208              	.LBE42:
+ 209              	# ../src/dgemm_avx256.cpp:42: }
+  40:../src/dgemm_avx256.cpp ****         }
+  41:../src/dgemm_avx256.cpp ****     }
+  42:../src/dgemm_avx256.cpp **** }
+ 210              		.loc 1 42 1 is_stmt 0 view .LVU45
+ 211 0095 5B       		pop	rbx	#
+ 212              	.LVL15:
+ 213              		.loc 1 42 1 view .LVU46
+ 214 0096 415C     		pop	r12	#
+ 215              	.LVL16:
+ 216              		.loc 1 42 1 view .LVU47
+ 217 0098 415D     		pop	r13	#
+ 218              	.LVL17:
+ 219              		.loc 1 42 1 view .LVU48
+ 220 009a 415E     		pop	r14	#
+ 221 009c 415F     		pop	r15	#
+ 222              	.LVL18:
+ 223              		.loc 1 42 1 view .LVU49
+ 224 009e 5D       		pop	rbp	#
+ 225              		.cfi_def_cfa 7, 8
+ 226 009f C3       		ret	
+ 227              	.LVL19:
+ 228              	.L17:
+ 229              		.cfi_restore 3
+ 230              		.cfi_restore 6
+ 231              		.cfi_restore 12
+ 232              		.cfi_restore 13
+ 233              		.cfi_restore 14
+ 234              		.cfi_restore 15
+ 235              		.loc 1 42 1 view .LVU50
+ 236 00a0 C3       		ret	
+ 237              		.cfi_endproc
+ 238              	.LFE6625:
+ 240              	.Letext0:
+ 241              		.file 3 "/usr/include/bits/types.h"
+ 242              		.file 4 "/usr/include/bits/stdint-intn.h"
+ 243              		.file 5 "/usr/include/bits/stdint-uintn.h"
+ 244              		.file 6 "/usr/include/stdint.h"
+ 245              		.file 7 "/usr/include/c++/13.1.1/cstdint"
+ 246              		.file 8 "/usr/include/c++/13.1.1/cstdlib"
+ 247              		.file 9 "/usr/include/c++/13.1.1/bits/std_abs.h"
+ 248              		.file 10 "/usr/lib/gcc/x86_64-pc-linux-gnu/13.1.1/include/stddef.h"
+ 249              		.file 11 "/usr/include/stdlib.h"
+ 250              		.file 12 "/usr/include/bits/stdlib-float.h"
+ 251              		.file 13 "/usr/include/bits/stdlib-bsearch.h"
+ 252              		.file 14 "/usr/include/c++/13.1.1/stdlib.h"
+ 253              		.file 15 "/usr/include/c++/13.1.1/x86_64-pc-linux-gnu/bits/c++config.h"

@@ -29,7 +29,7 @@ void dgemm_avx256(const uint32_t n, const double* A, const double* B, double* C)
     {
         for( uint32_t j = 0; j < n; j++ ) 
         {
-            __m256d c0 = _mm256_load_pd(C + i + j * n); /* c0 = C[i][j] */
+            __m256d c0 = _mm256_load_pd(C + i + j * n); /* c0 = C[j][i] */
             for( uint32_t k = 0; k < n; k++ )
             {
                 c0 = _mm256_add_pd(c0, /* c0 += A[i][k]*B[k][j] */
