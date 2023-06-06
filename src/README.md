@@ -77,3 +77,15 @@ c0 += A[k][i]~A[k][i+3]*B[j][k] -> C[j][i] = sum(A[k][i]*B[j][k],k:0~n-1)
 // then C[j+1][i]~C[j+1][i+3] ...
 // so row must be multiple of 4, which also said by `_mm256_load_pd`
 ```
+- above avx instruction explained
+  - [vmovapd](https://www.felixcloutier.com/x86/movapd) 'can be used to load an XMM, YMM or ZMM register *from* an 128-bit, 256-bit or 512-bit *memory* location'
+    - from [this](https://www.felixcloutier.com/x86/movapd#vmovapd--vex-256-encoded-version--load---and-register-copy-) `DEST[MAXVL-1:256]` zeroed (from intel doc MAXVL=512)
+  - [vbroadcastsd](https://www.felixcloutier.com/x86/vbroadcast#fig-5-3) 'load floating-point values as one tuple', also [clear by seeing 'Operation'](https://www.felixcloutier.com/x86/vbroadcast#vbroadcastsd--vex-256-encoded-version-)
+  - [vfmadd231pd](https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd) clear by seeing 'Description',
+    - kw: 'two, four or eight *packed* double precision', '[infinite precision intermediate](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic)'
+      - see [pep](https://peps.python.org/pep-0237/) which is similar to wikipedia example, 
+        - floating-point : 'in a floating-point format as a significand *multiplied* by an arbitrary exponent','the mantissa was restricted to a hundred digits or fewer'
+    - ['MXCSR'](https://help.totalview.io/previous_releases/2019/html/index.html#page/Reference_Guide/Intelx86MXSCRRegister_2.html) in ['RoundFPControl_MXCSR'](https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd#vfmadd231pd-dest--src2--src3--vex-encoded-version-) (which has no definition in intel doc)
+  - vzeroupper same as above
+    - this is to avoid [implicit widening](https://stackoverflow.com/questions/66874161/first-use-of-avx-256-bit-vectors-slows-down-128-bit-vector-and-avx-scalar-ops)(from [this more detailed](https://stackoverflow.com/questions/49019614/is-it-useful-to-use-vzeroupper-if-your-programlibraries-contain-no-sse-instruct)) to keep outside function not using avx unexpectedly.
+      - also not use avx occationly because of 'Warm-up period'
