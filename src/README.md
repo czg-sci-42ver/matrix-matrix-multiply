@@ -66,9 +66,31 @@
 ```
 - _mm256_load_pd definition
 ```bash
+# from clang
 # https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html
-typedef double __m256d __attribute__((__vector_size__(32), __aligned__(32)));
+typedef double __m256d __attribute__((__vector_size__(32), __aligned__(32))); 
+
+# from gcc
+# more detailed https://gcc.gnu.org/onlinedocs/gcc-4.7.2/gcc/Function-Attributes.html
+extern __inline __m256d __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm256_load_pd (double const *__P)
+
+# https://gcc.gnu.org/onlinedocs/gcc-3.3/gcc/Type-Attributes.html
+typedef double __m256d __attribute__ ((__vector_size__ (32),
+				       __may_alias__));
 ```
+  - artificial: 'using the *caller* location for all instructions within the inlined body'
+  - may_alias: 'alias any other type of objects'
+    - ['Type-based alias analysis'](https://en.wikipedia.org/wiki/Alias_analysis#Type-based_alias_analysis) just split all variable into different *alias classes* by type.
+      - [type-safety](https://en.wikipedia.org/wiki/Type_safety#Definitions) 'those *sanctioned* by the type of the data'
+      - pointer to local variable undefined but may [‘always works as expected’](https://stackoverflow.com/questions/49213172/c-local-variable-passed-by-reference-to-the-class-with-pointer-member)
+    - so this can be recast to anything po
+  - see mangled symbol using [`objdump`](https://stackoverflow.com/questions/4468770/c-name-mangling-decoder-for-g) or just [g++](https://stackoverflow.com/questions/12400105/getting-mangled-name-from-demangled-name)
+  - [TU-local](https://en.cppreference.com/w/cpp/language/tu_local#:~:text=Translation%2Dunit%2Dlocal%20(TU,used%20in%20other%20translation%20units.) TODO
+  - [different inline](https://stackoverflow.com/questions/216510/what-does-extern-inline-do/51229603#51229603) from [this comment](https://stackoverflow.com/questions/55884502/why-does-gnu-inline-attribute-affects-code-generation-so-much-compared-to-genera)
+    - here `gnu_inline` 'never emit any symbol' which can be seen `maintenance print symbols|grep dgemm_avx256 --color=always` with `maintenance print symbols|grep _mm256_load_pd --color=always` in pwndbg
+      - TODO after c++primer, [gnu89/gnu90](https://gcc.gnu.org/onlinedocs/gcc/C-Dialect-Options.html) [diff](https://en.wikipedia.org/wiki/Inline_function#gnu89) with gnu99, and why design as that?
+        - although [this](https://blahg.josefsipek.net/?p=529) from wikipedia says well, which is also related with symbol by using `nm` as said above.
 - according to this [Q&A](https://stackoverflow.c_mm256_load_pduestions/76405912/question-about-dgemm-test-mm256-load-pdc-i-j-n-in-cod), the book use column-major annotation in comments although it use C code ...
   - so the logic of the code is C=B*A
 ```cpp
