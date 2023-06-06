@@ -7,6 +7,7 @@ add_executable( ${EXE_NAME}
 	#    dgemm_avx512.cpp
 	#    dgemm_blocked.cpp
 	#dgemm_unrolled.cpp
+    dgemm_unrolled_avx256.cpp
     dgemm_basic.cpp
     dgemm_basic_blocked.cpp
 	#dgemm_openmp.cpp

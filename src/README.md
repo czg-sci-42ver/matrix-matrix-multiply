@@ -90,7 +90,7 @@ typedef double __m256d __attribute__ ((__vector_size__ (32),
   - [different inline](https://stackoverflow.com/questions/216510/what-does-extern-inline-do/51229603#51229603) from [this comment](https://stackoverflow.com/questions/55884502/why-does-gnu-inline-attribute-affects-code-generation-so-much-compared-to-genera)
     - here `gnu_inline` 'never emit any symbol' which can be seen `maintenance print symbols|grep dgemm_avx256 --color=always` with `maintenance print symbols|grep _mm256_load_pd --color=always` in pwndbg
       - TODO after c++primer, [gnu89/gnu90](https://gcc.gnu.org/onlinedocs/gcc/C-Dialect-Options.html) [diff](https://en.wikipedia.org/wiki/Inline_function#gnu89) with gnu99, and why design as that?
-        - although [this](https://blahg.josefsipek.net/?p=529) from wikipedia says well, which is also related with symbol by using `nm` as said above.
+        - although [this](https://blahg.josefsipek.net/?p=529) from wikipedia says well, which is also related with symbol by using `nm` as said above. So here `extern __inline` with `__gnu_inline__`(gnu90) -> never shown in symbols in  object file.
 - according to this [Q&A](https://stackoverflow.c_mm256_load_pduestions/76405912/question-about-dgemm-test-mm256-load-pdc-i-j-n-in-cod), the book use column-major annotation in comments although it use C code ...
   - so the logic of the code is C=B*A
 ```cpp
@@ -111,3 +111,11 @@ c0 += A[k][i]~A[k][i+3]*B[j][k] -> C[j][i] = sum(A[k][i]*B[j][k],k:0~n-1)
   - vzeroupper same as above
     - this is to avoid [implicit widening](https://stackoverflow.com/questions/66874161/first-use-of-avx-256-bit-vectors-slows-down-128-bit-vector-and-avx-scalar-ops)(from [this more detailed](https://stackoverflow.com/questions/49019614/is-it-useful-to-use-vzeroupper-if-your-programlibraries-contain-no-sse-instruct)) to keep outside function not using avx unexpectedly.
       - also not use avx occationly because of 'Warm-up period'
+# `dgemm_unrolled` (avx512)
+```cpp
+c[i]~c[UNROLL]=C[j][i]...C[j][i+7]~C[j][i+UNROLL*8]...C[j][i+7+UNROLL*8] // one line of C with 8(512/64=8) * UNROLL `double` variable
+```
+- here in i-loop, load one *line* from C, so from $B*A=C$,j-loop should also load one *line* of B, and first number of line from B $B_{jk}$
+should be calculated with one whole line in A, which implies using `broadcast` with $B_{jk}$, 
+then should add $n$ multiply result to each number (i.e. k from 0 to $n$). `A + n * k + i` in `A + n * k + r * 8 + i` means `ptr(A[k][i])` based on `n` meaning and `r` is unroll variable, so `A + n * k + r * 8 + i` is `ptr(A[k][i+r*8])`.
+- so all in all, above is just unrolling to calculate more elements with each C *line*
