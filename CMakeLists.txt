@@ -9,7 +9,10 @@ set( CMAKE_BUILD_TYPE Release )
 
 #set(CMAKE_CXX_FLAGS "-static-libasan -fsanitize=address -lefence -Wall -Wextra -Wpedantic -g -fopenmp -march=native -mtune=native -mavx -mno-avx512f")
 #set(CMAKE_CXX_FLAGS "-fsanitize=address -lefence -Wall -Wextra -Wpedantic -g -fopenmp -march=native -mtune=native -mavx -mno-avx512f")
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -g -fopenmp -march=native -mtune=native -mavx -mno-avx512f -fno-pic -no-pie")
+#set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -g -fopenmp -march=native -mtune=native -mavx -mno-avx512f -fno-pic -no-pie")
+#set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -fopenmp -march=native -mtune=native -mavx -mno-avx512f -fno-pic -no-pie")
+#set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -funroll-loops -fopenmp -march=native -mtune=native -mavx -mno-avx512f -fno-pic -no-pie")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -O3 -fopenmp -march=native -mtune=native -mavx -mno-avx512f -fno-pic -no-pie")
 
 add_subdirectory(src)
 

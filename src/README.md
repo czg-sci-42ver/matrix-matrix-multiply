@@ -119,3 +119,49 @@ c[i]~c[UNROLL]=C[j][i]...C[j][i+7]~C[j][i+UNROLL*8]...C[j][i+7+UNROLL*8] // one 
 should be calculated with one whole line in A, which implies using `broadcast` with $B_{jk}$, 
 then should add $n$ multiply result to each number (i.e. k from 0 to $n$). `A + n * k + i` in `A + n * k + r * 8 + i` means `ptr(A[k][i])` based on `n` meaning and `r` is unroll variable, so `A + n * k + r * 8 + i` is `ptr(A[k][i+r*8])`.
 - so all in all, above is just unrolling to calculate more elements with each C *line*
+# using `-funroll-loops`
+- COD risc-v p651 says 'do the unrolling at −O3 optimization', but not at all.
+- after `objdump`, `-funroll-loops` isn't as 'intelligent' as `dgemm_unrolled` program, which may add redundant calculation (more `vbroadcastsd` and `vfmadd132pd`), although basic idea is same(just put multiple original subsequent loops in one loop)
+```bash
+# -funroll-loops
+         dgemm_basic:  elapsed-time=    328731
+ dgemm_basic_blocked:  elapsed-time=    157191     speed-up=   2.09128
+        dgemm_avx256:  elapsed-time=     81859     speed-up=   4.01582
+dgemm_unrolled_avx256:  elapsed-time=     24795     speed-up=    13.258
+# O3 without -funroll-loops
+         dgemm_basic:  elapsed-time=    321941
+ dgemm_basic_blocked:  elapsed-time=    153672     speed-up=   2.09499
+        dgemm_avx256:  elapsed-time=     85452     speed-up=   3.76751
+dgemm_unrolled_avx256:  elapsed-time=     23278     speed-up=   13.8303
+```
+- why [not unroll sometimes](https://stackoverflow.com/questions/24196076/is-gcc-loop-unrolling-flag-really-effective)
+  - ’usually makes the code run slower.‘,'have little memory','-fprofile-arcs'
+# turbo
+- according to some web resources, turbo core is default on with new ryzen cpu (at least muy ryzen 48000h), also see my ~~bitbucket repo automatic_command->archlinux_init~~, [csapp3e](https://github.com/czg-sci-42ver/csapp3e) 'turbo core'
+- from amd [official](https://www.amd.com/en/technologies/turbo-core) 'a core is operating below maximum' & 'your workload subsides' and [this 'only single core to the advertised speed'](https://www.quora.com/Does-Turbo-Boost-increase-the-clock-speed-of-only-one-core-in-a-dual-core-processor), so my 4800h only achieve 4200MHZ one core one time mostly (although sometimes two core 4100MHZ meanwhile).
+## make all P0
+```bash
+$ /mnt/ubuntu/home/czg/csapp3e/COD/turbo.sh
+$ sudo cpupower frequency-info                                        
+analyzing CPU 1:
+  driver: acpi-cpufreq
+  CPUs which run at the same hardware frequency: 1
+  CPUs which need to have their frequency coordinated by software: 1
+  maximum transition latency:  Cannot determine or is not supported.
+  hardware limits: 1.40 GHz - 2.90 GHz
+  available frequency steps:  2.90 GHz, 1.70 GHz, 1.40 GHz
+  available cpufreq governors: conservative ondemand userspace powersave performance schedutil
+  current policy: frequency should be within 2.90 GHz and 2.90 GHz. # all P0
+                  The governor "userspace" may decide which speed to use
+                  within this range.
+  current CPU frequency: 2.90 GHz (asserted by call to hardware)
+  boost state support:
+    Supported: yes
+    Active: yes # turbo core active
+    Boost States: 0
+    Total States: 3
+    Pstate-P0:  2900MHz
+    Pstate-P1:  1700MHz
+    Pstate-P2:  1400MHz
+```
+- notice because of only one core turbo core, tested on my machine, the speed not increase a lot by making all P0. But it should help from nonturbo to turbo (not tested).
