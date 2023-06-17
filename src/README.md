@@ -165,3 +165,5 @@ analyzing CPU 1:
     Pstate-P2:  1400MHz
 ```
 - notice because of only one core turbo core, tested on my machine, the speed not increase a lot by making all P0. But it should help from nonturbo to turbo (not tested).
+# dgemm_basic_blocked
+- still $C=B*A$, `cij += A[i + k * n] * B[k + j * n];`: B[j][k]*A[k][i]
