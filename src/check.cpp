@@ -1,52 +1,47 @@
 #include "check.h"
+
+#include <iostream>
+#include <string>
+#include <vector>
+
 #include "dgemm_avx256.h"
 #include "dgemm_avx512.h"
-#include "dgemm_unrolled.h"
-#include "dgemm_blocked.h"
 #include "dgemm_basic.h"
 #include "dgemm_basic_blocked.h"
+#include "dgemm_blocked.h"
 #include "dgemm_openmp.h"
+#include "dgemm_unrolled.h"
 #include "mtx.h"
-#include <iostream>
-#include <vector>
-#include <string>
 
+using dgemm_function = void (*)(const uint32_t n, const double *a,
+                                const double *b, double *c);
 
-using dgemm_function = void (*)(const uint32_t n, const double* a, const double* b, double* c);
+class Dgemm {
+    public:
+        Dgemm(dgemm_function f, const std::string &name)
+            : m_f(f), m_name(name) {}
 
-class Dgemm
-{
-public:
-    Dgemm(dgemm_function f, const std::string& name)
-        : m_f(f)
-        , m_name(name)
-    {
-
-    }
-
-public:
-    dgemm_function m_f;
-    const std::string m_name;
+    public:
+        dgemm_function m_f;
+        const std::string m_name;
 };
 
-
-static double calc_abs_sum(const uint32_t n, const double* c, const double* q)
-{
-    double ret{ 0.0 };
-    for(uint32_t i = 0; i < n * n; i++)
-    {
+static double calc_abs_sum(const uint32_t n, const double *c, const double *q) {
+    double ret{0.0};
+    for (uint32_t i = 0; i < n * n; i++) {
         ret += std::abs(c[i] - q[i]);
     }
     return ret;
 }
 
-void check()
-{
+void check() {
     constexpr uint32_t trial_no = 11;
-    /* 
+    /*
     why 32/16/8 *4 work , but 4*4 fails
-    
-    by valgrind, ’Invalid read of size 8‘ when 'at 0x10B7BA: do_block (dgemm_basic_blocked.cpp:59)' cause afterwards pointer to be freed is weird 'changed'.
+
+    by valgrind, ’Invalid read of size 8‘ when 'at 0x10B7BA: do_block
+    (dgemm_basic_blocked.cpp:59)' cause afterwards pointer to be freed is weird
+    'changed'.
 
     so 32>4*4, so read outsize
     */
@@ -55,8 +50,7 @@ void check()
     constexpr uint32_t n = 4 * 4;
     constexpr double eps = 1e-6;
 
-    std::vector< Dgemm > all_dgemm =
-    {
+    std::vector<Dgemm> all_dgemm = {
         {dgemm_basic_blocked, "dgemm_basic_blocked"},
         {dgemm_avx256, "dgemm_avx256"},
         //{dgemm_avx512, "dgemm_avx512"},
@@ -64,13 +58,11 @@ void check()
         //{dgemm_blocked, "dgemm_blocked"},
     };
 
-
     Mtx a(n), b(n);
     Mtx c_basic(n);
     Mtx c(n);
 
-    for(uint32_t i = 0; i < trial_no; i++)
-    {
+    for (uint32_t i = 0; i < trial_no; i++) {
         a.generate();
         b.generate();
         c.generate();
@@ -78,15 +70,14 @@ void check()
 
         dgemm_basic(n, a.data(), b.data(), c_basic.data());
 
-        for(auto & e : all_dgemm)
-        {
+        for (auto &e : all_dgemm) {
             c.generate();
 
             (*e.m_f)(n, a.data(), b.data(), c.data());
             const double abs_sum = calc_abs_sum(n, c.data(), c_basic.data());
-            if(abs_sum > eps)
-            {
-                std::cout << abs_sum << "  Error in algorithm " << e.m_name << "\n";
+            if (abs_sum > eps) {
+                // std::cout << abs_sum << "  Error in algorithm " << e.m_name
+                // << "\n";
             }
         }
     }

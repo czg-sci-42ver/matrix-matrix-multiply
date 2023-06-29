@@ -1,3 +1,9 @@
+# outline
+- 'FIGURE 3.19' Unoptimized -> [dgemm_basic](./dgemm_basic.cpp)
+- 'FIGURE 3.21' using *subword-parallel* -> [dgemm_avx256](./dgemm_avx256.cpp) (implied by using `_mm256_` instructions)
+- 'FIGURE 4.77' using *instruction-level* -> [dgemm_unrolled_avx256](./dgemm_unrolled_avx256.cpp)
+  - here different `c[x]` has no dependency relation. So instruction-level.
+- basic cache-block 'FIGURE 5.21' -> [dgemm_basic_blocked](./dgemm_basic_blocked.cpp)
 # `dgemm_avx256`
 - when `set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -g -fopenmp -march=native -mtune=native -mavx -mno-avx512f")`, see the following assembly with `../asm/O3_asm/` (instruction related with `;~` is obvious, so comment omitted):
 ```asm
@@ -167,3 +173,6 @@ analyzing CPU 1:
 - notice because of only one core turbo core, tested on my machine, the speed not increase a lot by making all P0. But it should help from nonturbo to turbo (not tested).
 # dgemm_basic_blocked
 - still $C=B*A$, `cij += A[i + k * n] * B[k + j * n];`: B[j][k]*A[k][i]
+- ~~here, if think from C row-major, every j-loop may use new `C` because new row. Whether to replace original cache depends on the cache design. Here think of the worst case which will *replace* the original. In the k-loop, A always fetch new cache and B not. So every i-loop, fetch *BLOCKSIZE* C element,~~
+  - ~~if from Fortran column-major,~~
+- Here block assume

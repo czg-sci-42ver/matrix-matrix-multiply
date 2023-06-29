@@ -12,7 +12,10 @@ set( CMAKE_BUILD_TYPE Release )
 #set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -g -fopenmp -march=native -mtune=native -mavx -mno-avx512f -fno-pic -no-pie")
 #set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -fopenmp -march=native -mtune=native -mavx -mno-avx512f -fno-pic -no-pie")
 #set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -funroll-loops -fopenmp -march=native -mtune=native -mavx -mno-avx512f -fno-pic -no-pie")
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -O3 -fopenmp -march=native -mtune=native -mavx -mno-avx512f -fno-pic -no-pie")
+#set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -O3 -fopenmp -march=native -mtune=native -mavx -mno-avx512f -fno-pic -no-pie")
+
+# add debug to allow 'callgrind'
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -O3 -fopenmp -march=native -mtune=native -mavx -mno-avx512f -g")
 
 add_subdirectory(src)
 
