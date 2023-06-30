@@ -1,5 +1,4 @@
 SET( EXE_NAME dgemm )
-
 # https://stackoverflow.com/questions/31037882/whats-the-cmake-syntax-to-set-and-use-variables
 SET(CPP_FILES 
     "calc_speed_up.cpp"
@@ -13,18 +12,25 @@ SET(CPP_FILES
     dgemm_basic_blocked.cpp
 	#dgemm_openmp.cpp
     get_timestamp.cpp
-    main.cpp
     mtx.cpp
 )
+file (GLOB_RECURSE MAIN_FILES CONFIGURE_DEPENDS "main*.cpp")
+# string(REPLACE "cpp" "" MAIN_EXE ${MAIN_FILES})
+set(MAIN_EXE ${MAIN_FILES})
+# https://stackoverflow.com/questions/50284283/cmake-file-command-gives-invalid-escape-sequence-for-regex-rule
+list(TRANSFORM MAIN_EXE REPLACE "[a-z.\\/\\-]*\\/(.*)\\.cpp" "\\1")
+# foreach(MAIN_FILE ${MAIN_FILES})
+#     string(REGEX MATCH "[a-z.\\/\\-]*\\/(.*)\\.cpp" TMP ${MAIN_FILE})
+#     message(STATUS "find: ${TMP}")
+# endforeach()
 
-message(STATUS "dir:${CMAKE_CURRENT_SOURCE_DIR}; cppfiles: ${CPP_FILES}")
+# foreach (_headerFile ${MAIN_FILES})
+
+message(STATUS "dir:${CMAKE_CURRENT_SOURCE_DIR}; cppfiles: ${CPP_FILES};\nmain_exe:${MAIN_EXE} ; ${MAIN_FILES}")
 
 # foreach https://stackoverflow.com/questions/6921695/how-can-i-build-a-c-project-with-multiple-interdependent-subdirectories
 # https://stackoverflow.com/questions/35072473/executing-bash-commands-from-a-cmake-file
 execute_process (
-	#COMMAND bash -c "ls ../src | grep '.*.[cpp\|h]' | xargs -d '\n' -n 1 -0 clang-format -i --style=Google"
-	#COMMAND bash -c "for i in $(ls ../src | grep '.*.[cpp|h]'); do clang-format -i ../src/$i --style=Google;done"
-	#COMMAND bash -c "for i in $(ls ../src | grep '.*.[cpp|h]'); do clang-format -i ../src/$i --style=Mozilla;done"
 	# use style.clang-format, affter formatting, the file will weirdly be changed...
 	#COMMAND bash -c "pwd;for i in $(ls ../src | grep '.*.[cpp|h]'); do clang-format -i ../src/$i --style=file:${CMAKE_CURRENT_SOURCE_DIR}/style.clang-format;done"
 	# https://clang.llvm.org/docs/ClangFormatStyleOptions.html
@@ -35,7 +41,24 @@ execute_process (
 
 add_executable( ${EXE_NAME}
 	${CPP_FILES}
+    main.cpp
 )
+
+# https://stackoverflow.com/questions/7932205/parallel-iteration-over-lists-in-makefile-or-cmake-file
+list(LENGTH MAIN_FILES len_orig)
+math(EXPR len_index "${len_orig}-1")
+foreach(val RANGE ${len_index})
+    list(GET MAIN_FILES ${val} target_file)
+    list(GET MAIN_EXE ${val} target)
+    add_executable( ${target}
+	${CPP_FILES}
+    ${target_file}
+    )
+endforeach()
+
+#set_target_properties(${EXE_NAME}.s PROPERTIES COMPILE_FLAGS "-S -fverbose-asm")
+# https://stackoverflow.com/questions/40329823/cmake-generate-assembly-file-then-compile-it-into-executable
+set_target_properties(${EXE_NAME} PROPERTIES COMPILE_FLAGS "-save-temps -masm=intel -fverbose-asm")
 
 #add_executable( ${EXE_NAME}.s
 #    calc_speed_up.cpp
@@ -51,7 +74,3 @@ add_executable( ${EXE_NAME}
 #    main.cpp
 #    mtx.cpp
 #)
-
-#set_target_properties(${EXE_NAME}.s PROPERTIES COMPILE_FLAGS "-S -fverbose-asm")
-# https://stackoverflow.com/questions/40329823/cmake-generate-assembly-file-then-compile-it-into-executable
-set_target_properties(${EXE_NAME} PROPERTIES COMPILE_FLAGS "-save-temps -masm=intel -fverbose-asm")

@@ -176,3 +176,47 @@ analyzing CPU 1:
 - ~~here, if think from C row-major, every j-loop may use new `C` because new row. Whether to replace original cache depends on the cache design. Here think of the worst case which will *replace* the original. In the k-loop, A always fetch new cache and B not. So every i-loop, fetch *BLOCKSIZE* C element,~~
   - ~~if from Fortran column-major,~~
 - Here block assume
+# cmake miscs
+- here group match not use `list(TRANSFORM MAIN_EXE REPLACE "[a-z.\\/\\-]*\\/(.*)\\.cpp" "${CMAKE_MATCH_1}")` because the group is *saved* into `CMAKE_MATCH_1` instead of using it when *running* list... See [example](https://stackoverflow.com/questions/70099620/cmake-string-to-get-key-value-pairs-from-a-string-list-containing-key-values-sep)
+  - should use [`\\1`](https://cmake.org/cmake/help/latest/command/string.html#regex-replace)
+- file output is [*list*](https://cmake.org/cmake/help/latest/command/file.html)
+- show [verbose](https://stackoverflow.com/questions/57999508/verbose-output-for-cmake-command) info `cmake .. --trace-expand`
+# cache_miss test
+## cachegrind
+- main_dgemm_basic_blocked
+```bash
+$ valgrind --tool=cachegrind --cache-sim=yes src/main_dgemm_basic_blocked 
+==61026== Cachegrind, a cache and branch-prediction profiler
+==61026== Copyright (C) 2002-2017, and GNU GPL'd, by Nicholas Nethercote et al.
+==61026== Using Valgrind-3.21.0 and LibVEX; rerun with -h for copyright info
+==61026== Command: src/main_dgemm_basic_blocked
+==61026== 
+--61026-- warning: L3 cache found, using its data for the LL simulation.
+ dgemm_basic_blocked:  elapsed-time=  13891725     speed-up=         1
+==61026== 
+==61026== I refs:        17,912,944,093
+==61026== I1  misses:             2,363
+==61026== LLi misses:             2,265
+==61026== I1  miss rate:           0.00%
+==61026== LLi miss rate:           0.00%
+==61026== 
+==61026== D refs:        11,954,347,744  (10,308,550,743 rd   + 1,645,797,001 wr)
+==61026== D1  misses:       191,374,279  (   189,680,947 rd   +     1,693,332 wr)
+==61026== LLd misses:         1,142,397  (       758,051 rd   +       384,346 wr)
+==61026== D1  miss rate:            1.6% (           1.8%     +           0.1%  )
+==61026== LLd miss rate:            0.0% (           0.0%     +           0.0%  )
+==61026== 
+==61026== LL refs:          191,376,642  (   189,683,310 rd   +     1,693,332 wr)
+==61026== LL misses:          1,144,662  (       760,316 rd   +       384,346 wr)
+==61026== LL miss rate:             0.0% (           0.0%     +           0.0%  )
+```
+### debug 
+- [`--cachegrind-out-file=`](https://valgrind.org/docs/manual/cg-manual.html#opt.cachegrind-out-file) no use by `file=main_dgemm_avx256;valgrind --tool=cachegrind --cache-sim=yes ./$file --cachegrind-out-file=\"${file}_cachegrind_%s.log\"` or `file=main_dgemm_avx256;valgrind --tool=cachegrind --cache-sim=yes ./$file --cachegrind-out-file="${file}_cachegrind_%s.log"`
+  - TODO also with other tools like [`ms_print`](https://valgrind.org/docs/manual/ms-manual.html)
+  - also see [php related](https://stackoverflow.com/questions/22339588/xdebug-profiler-creates-a-cachegrind-out-file-for-auto-prepended-file-but-not-th) using cachegrind
+#### html miscs
+- go to specific *fragment*
+  - [`#`](https://support.google.com/richmedia/answer/190941?hl=en#:~:text=In%20a%20URL%2C%20a%20hash,of%20the%20page%20or%20website.) -> ['fragment identifier'](https://www.w3.org/Addressing/URL/4_2_Fragments.html)
+    - See [sign list](https://en.wikipedia.org/wiki/List_of_typographical_symbols_and_punctuation_marks)
+  - notice html Specification dynamic changing [1](https://stackoverflow.com/questions/35032130/are-there-two-ways-to-jump-to-a-fragment-identifier-in-html) [2](https://stackoverflow.com/questions/484719/should-i-make-html-anchors-with-name-or-id)
+    - so both [`name`](https://valgrind.org/docs/manual/manual-core.html#opt.log-file) and [`id`](https://cmake.org/cmake/help/latest/command/file.html#write) can be used to go to fragment (one special href).
