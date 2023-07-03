@@ -220,3 +220,17 @@ $ valgrind --tool=cachegrind --cache-sim=yes src/main_dgemm_basic_blocked
     - See [sign list](https://en.wikipedia.org/wiki/List_of_typographical_symbols_and_punctuation_marks)
   - notice html Specification dynamic changing [1](https://stackoverflow.com/questions/35032130/are-there-two-ways-to-jump-to-a-fragment-identifier-in-html) [2](https://stackoverflow.com/questions/484719/should-i-make-html-anchors-with-name-or-id)
     - so both [`name`](https://valgrind.org/docs/manual/manual-core.html#opt.log-file) and [`id`](https://cmake.org/cmake/help/latest/command/file.html#write) can be used to go to fragment (one special href).
+# cmake
+- cmake_format ext with cmake-format in virtualenv path no use in vscode.
+  ```bash
+  $ ~/.virtualenv/misc/bin/cmake-format -v
+  0.6.13
+  ```
+  profile json
+  ```json
+      "[cmake]": {
+          "editor.defaultFormatter": "cheshirekow.cmake-format"
+      },
+      "cmakeFormat.exePath": "~/.virtualenv/misc/bin/cmake-format",
+  ```
+- also `autopep8` with `python` no use. based on this [config](https://dev.to/vybhav/beginners-guide-to-auto-formatting-1hpp)

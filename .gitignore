@@ -5,3 +5,5 @@ build/
 .cache/
 *.out.*
 *.data*
+*.log
+debug/

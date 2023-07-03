@@ -48,12 +48,21 @@ program, which again improves performance.
 
 static constexpr uint32_t BLOCKSIZE = 4;
 
-static void do_block(const uint32_t n, const uint32_t si, const uint32_t sj,
-                     const uint32_t sk, const double *A, const double *B,
-                     double *C) {
+// #pragma
+/*
+`__attribute__((noinline))` this will avoid unroll in `dgemm_basic_blocked` but
+just in itself.
+*/
+static void
+// __attribute__((noinline))
+do_block(const uint32_t n, const uint32_t si, const uint32_t sj,
+         const uint32_t sk, const double *A, const double *B, double *C) {
+#pragma GCC unroll 1
     for (uint32_t i = si; i < si + BLOCKSIZE; ++i) {
+#pragma GCC unroll 1
         for (uint32_t j = sj; j < sj + BLOCKSIZE; ++j) {
             double cij = C[i + j * n]; /* cij = C[i][j] */
+#pragma GCC unroll 1
             for (uint32_t k = sk; k < sk + BLOCKSIZE; k++) {
                 cij += A[i + k * n] * B[k + j * n]; /* cij+=A[i][k]*B[k][j] */
             }
