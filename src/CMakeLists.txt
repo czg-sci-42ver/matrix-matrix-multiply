@@ -1,4 +1,5 @@
 enable_language(ASM)
+# set(DCMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(EXE_NAME dgemm)
 # https://stackoverflow.com/questions/31037882/whats-the-cmake-syntax-to-set-and-use-variables
 file(
