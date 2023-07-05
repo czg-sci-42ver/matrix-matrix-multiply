@@ -75,8 +75,9 @@ speed-up=   12.2003
 912         432        [.] dgemm_unrolled_avx256
 1088         588        [.] dgemm_blocked_avx256 // 1.8503401360544218
 */
-
+#ifndef BLOCK_DENOMINATOR
 #define BLOCK_DENOMINATOR 20
+#endif
 static constexpr uint32_t BLOCKSIZE = 32 * 20 / BLOCK_DENOMINATOR;
 
 static void

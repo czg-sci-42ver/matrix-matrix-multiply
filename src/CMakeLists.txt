@@ -1,5 +1,13 @@
 enable_language(ASM)
 # set(DCMAKE_EXPORT_COMPILE_COMMANDS 1)
+set(BLOCK_DENOMINATOR_LIST
+    1
+    2
+    4
+    5
+    10
+    20
+    40)
 set(EXE_NAME dgemm)
 # https://stackoverflow.com/questions/31037882/whats-the-cmake-syntax-to-set-and-use-variables
 file(
@@ -49,7 +57,11 @@ execute_process(
   # https://stackoverflow.com/questions/42799183/how-to-auto-indent-a-c-class-with-4-spaces-using-clang-format
   COMMAND
     bash -c
-    "pwd;for i in $(ls ../src | grep '.*.[cpp|h]'); do clang-format -i ../src/$i --style='{BasedOnStyle: LLVM,IndentWidth: 4,NamespaceIndentation: All,IndentAccessModifiers : true}';done"
+    "for i in $(ls ../src | grep '.*.[cpp|h]'); do clang-format -i ../src/$i --style='{BasedOnStyle: LLVM,IndentWidth: 4,NamespaceIndentation: All,IndentAccessModifiers : true}';done"
+  COMMAND
+    bash -c
+    "for i in $(find .. -name 'CMakeLists.txt');do cmake-format -i $i;done"
+    COMMAND_ECHO STDOUT
   OUTPUT_VARIABLE outVar)
 
 # add_executable( ${EXE_NAME}.s ${CPP_FILES} main.cpp ) #
@@ -70,6 +82,19 @@ foreach(val RANGE ${len_index})
   not use multiple independent main_{foo}.cpp because main.cpp can be got func perf by `perf report/annotate`
   .]]
   # add_executable(${target} ${CPP_FILES} ${target_file})
+endforeach()
+
+foreach(BLOCK_DENOMINATOR ${BLOCK_DENOMINATOR_LIST})
+  add_executable(# "debug_block/${EXE_NAME}_${BLOCK_DENOMINATOR}"
+                 "${EXE_NAME}_${BLOCK_DENOMINATOR}" ${CPP_FILES} main.cpp)
+  # https://stackoverflow.com/questions/59131118/how-do-i-get-the-output-path-for-a-cmake-project
+  set_target_properties(
+    ${EXE_NAME}_${BLOCK_DENOMINATOR} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+                                                ${CMAKE_BINARY_DIR}/debug_block)
+  set_target_properties(
+    ${EXE_NAME}_${BLOCK_DENOMINATOR}
+    PROPERTIES COMPILE_FLAGS
+               "${CMAKE_CXX_FLAGS} -DBLOCK_DENOMINATOR=${BLOCK_DENOMINATOR}")
 endforeach()
 
 # set_target_properties(${EXE_NAME}.s PROPERTIES COMPILE_FLAGS "-S

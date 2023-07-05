@@ -31,8 +31,9 @@ set(CMAKE_CXX_FLAGS
 
 add_subdirectory(src)
 
-# not use `DCMAKE_EXPORT_COMPILE_COMMANDS 1` https://stackoverflow.com/questions/29148089/why-dcmake-export-compile-commands-does-not-create-compile-commands-json-file
+# not use `DCMAKE_EXPORT_COMPILE_COMMANDS 1`
+# https://stackoverflow.com/questions/29148089/why-dcmake-export-compile-commands-does-not-create-compile-commands-json-file
 set(DCMAKE_EXPORT_COMPILE_COMMANDS ON)
 if(CMAKE_GENERATOR MATCHES "Unix Makefiles")
-    message(STATUS "use make CMAKE_GENERATOR")
+  message(STATUS "use make CMAKE_GENERATOR")
 endif()
