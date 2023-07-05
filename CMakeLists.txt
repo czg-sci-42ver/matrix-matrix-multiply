@@ -5,7 +5,8 @@ project(dgemm)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_BUILD_TYPE Release)
+# set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 
 # same as `make VERBOSE=1`
 # https://stackoverflow.com/questions/12823799/cmake-how-to-show-the-compilers-stdout?rq=4
@@ -25,9 +26,15 @@ set(CMAKE_BUILD_TYPE Release)
 
 # add debug to allow 'callgrind'
 # https://stackoverflow.com/questions/57430338/what-do-the-perf-record-choices-of-lbr-vs-dwarf-vs-fp-do
-set(CMAKE_CXX_FLAGS
-    "-Wall -Wextra -Wpedantic -O3 -fopenmp -march=znver2 -mtune=znver2 -mavx -mno-avx512f -g -fno-omit-frame-pointer"
+set(BASE_FLAGS
+    "-Wall -Wextra -Wpedantic -O3 -fopenmp -march=znver2 -mtune=znver2 -mavx -mno-avx512f -fno-omit-frame-pointer"
 )
+if(${CMAKE_BUILD_TYPE} MATCHES Release)
+  set(CMAKE_CXX_FLAGS ${BASE_FLAGS})
+elseif(${CMAKE_BUILD_TYPE} MATCHES Debug)
+  message(STATUS "build with Debug flags")
+  set(CMAKE_CXX_FLAGS "${BASE_FLAGS} -g")
+endif()
 
 add_subdirectory(src)
 

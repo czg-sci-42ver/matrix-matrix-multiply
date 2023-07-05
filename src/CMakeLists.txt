@@ -87,7 +87,14 @@ endforeach()
 foreach(BLOCK_DENOMINATOR ${BLOCK_DENOMINATOR_LIST})
   add_executable(# "debug_block/${EXE_NAME}_${BLOCK_DENOMINATOR}"
                  "${EXE_NAME}_${BLOCK_DENOMINATOR}" ${CPP_FILES} main.cpp)
+  # ############################################################################
+  # CMAKE_BINARY_DIR
   # https://stackoverflow.com/questions/59131118/how-do-i-get-the-output-path-for-a-cmake-project
+  # ;
+  # https://stackoverflow.com/questions/13556885/how-to-change-the-executable-output-directory-for-win32-builds-in-cmake
+  # ############################################################################
+  # add_custom_command to do some extra things
+  # https://stackoverflow.com/questions/74041614/cmake-how-to-get-binary-target-complete-directory-and-name-on-windows
   set_target_properties(
     ${EXE_NAME}_${BLOCK_DENOMINATOR} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
                                                 ${CMAKE_BINARY_DIR}/debug_block)
