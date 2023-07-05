@@ -5,12 +5,12 @@
 #include <vector>
 
 #include "dgemm_avx256.h"
-#include "dgemm_avx512.h"
+// #include "dgemm_avx512.h"
 #include "dgemm_basic.h"
 #include "dgemm_basic_blocked.h"
-#include "dgemm_blocked.h"
-#include "dgemm_openmp.h"
-#include "dgemm_unrolled.h"
+// #include "dgemm_blocked.h"
+#include "dgemm_openmp_256.h"
+// #include "dgemm_unrolled.h"
 #include "mtx.h"
 
 using dgemm_function = void (*)(const uint32_t n, const double *a,

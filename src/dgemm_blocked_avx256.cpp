@@ -76,7 +76,8 @@ speed-up=   12.2003
 1088         588        [.] dgemm_blocked_avx256 // 1.8503401360544218
 */
 
-static constexpr uint32_t BLOCKSIZE = 32 * 20 / 40;
+#define BLOCK_DENOMINATOR 20
+static constexpr uint32_t BLOCKSIZE = 32 * 20 / BLOCK_DENOMINATOR;
 
 static void
 // __attribute__((noinline))

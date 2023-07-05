@@ -12,10 +12,9 @@ set(CPP_FILES
     ${AVX256_FILES}
     "calc_speed_up.cpp"
     "check.cpp"
-    # dgemm_avx512.cpp dgemm_blocked.cpp dgemm_unrolled.cpp
     dgemm_basic.cpp
     dgemm_basic_blocked.cpp
-    # dgemm_openmp.cpp
+    dgemm_openmp_256.cpp
     get_timestamp.cpp
     mtx.cpp)
 file(GLOB_RECURSE MAIN_FILES CONFIGURE_DEPENDS "main*.cpp")
@@ -67,7 +66,10 @@ math(EXPR len_index "${len_orig}-1")
 foreach(val RANGE ${len_index})
   list(GET MAIN_FILES ${val} target_file)
   list(GET MAIN_EXE ${val} target)
-  add_executable(${target} ${CPP_FILES} ${target_file})
+  #[[
+  not use multiple independent main_{foo}.cpp because main.cpp can be got func perf by `perf report/annotate`
+  .]]
+  # add_executable(${target} ${CPP_FILES} ${target_file})
 endforeach()
 
 # set_target_properties(${EXE_NAME}.s PROPERTIES COMPILE_FLAGS "-S
