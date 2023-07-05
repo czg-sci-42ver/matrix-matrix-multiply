@@ -122,8 +122,8 @@ c0 += A[k][i]~A[k][i+3]*B[j][k] -> C[j][i] = sum(A[k][i]*B[j][k],k:0~n-1)
 c[i]~c[UNROLL]=C[j][i]...C[j][i+7]~C[j][i+UNROLL*8]...C[j][i+7+UNROLL*8] // one line of C with 8(512/64=8) * UNROLL `double` variable
 ```
 - here in i-loop, load one *line* from C, so from $B*A=C$,j-loop should also load one *line* of B, and first number of line from B $B_{jk}$
-should be calculated with one whole line in A, which implies using `broadcast` with $B_{jk}$, 
-then should add $n$ multiply result to each number (i.e. k from 0 to $n$). `A + n * k + i` in `A + n * k + r * 8 + i` means `ptr(A[k][i])` based on `n` meaning and `r` is unroll variable, so `A + n * k + r * 8 + i` is `ptr(A[k][i+r*8])`.
+  should be calculated with one whole line in A, which implies using `broadcast` with $B_{jk}$, 
+  then should add $n$ multiply result to each number (i.e. k from 0 to $n$). `A + n * k + i` in `A + n * k + r * 8 + i` means `ptr(A[k][i])` based on `n` meaning and `r` is unroll variable, so `A + n * k + r * 8 + i` is `ptr(A[k][i+r*8])`.
 - so all in all, above is just unrolling to calculate more elements with each C *line*
 # using `-funroll-loops`
 - COD risc-v p651 says 'do the unrolling at −O3 optimization', but not at all.
