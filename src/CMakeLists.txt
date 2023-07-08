@@ -16,15 +16,14 @@ file(
   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
   CONFIGURE_DEPENDS "[^main]*256.cpp")
 message(STATUS "avx256_files: ${AVX256_FILES}")
-set(CPP_FILES
-    ${AVX256_FILES}
-    "calc_speed_up.cpp"
-    "check.cpp"
-    dgemm_basic.cpp
-    dgemm_basic_blocked.cpp
-    dgemm_openmp_256.cpp
-    get_timestamp.cpp
-    mtx.cpp)
+file(
+  GLOB CPP_FILES
+  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+  CONFIGURE_DEPENDS "*.cpp")
+# message(STATUS "base cpp files: ${CPP_FILES}")
+list(REMOVE_ITEM CPP_FILES CONFIGURE_DEPENDS "main.cpp")
+message(STATUS "base cpp files: ${CPP_FILES}")
+# set(CPP_FILES ${MAIN_FILES})
 file(GLOB_RECURSE MAIN_FILES CONFIGURE_DEPENDS "main*.cpp")
 # string(REPLACE "cpp" "" MAIN_EXE ${MAIN_FILES})
 set(MAIN_EXE ${MAIN_FILES})

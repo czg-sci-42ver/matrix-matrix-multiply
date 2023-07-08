@@ -1,0 +1,3 @@
+#ifndef BLOCK_DENOMINATOR
+#define BLOCK_DENOMINATOR 20
+#endif

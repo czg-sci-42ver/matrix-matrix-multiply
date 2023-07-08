@@ -8,7 +8,7 @@ subword-parallel instructions for the x86, loop unrolling and blocking to create
 more opportunities for instruction-level parallelism.
 */
 
-static constexpr uint32_t BLOCKSIZE = 32;
+static constexpr uint32_t BLOCKSIZE = 32 * 20 / BLOCK_DENOMINATOR;
 
 /*
 change 8 to 4
@@ -19,14 +19,15 @@ static void do_block(const uint32_t n, const uint32_t si, const uint32_t sj,
                      const uint32_t sk, const double *A, const double *B,
                      double *C) {
     constexpr uint32_t UNROLL = 4;
-
+#pragma GCC unroll 1
     for (uint32_t i = si; i < si + BLOCKSIZE; i += UNROLL * 4) {
+#pragma GCC unroll 1
         for (uint32_t j = sj; j < sj + BLOCKSIZE; ++j) {
             __m256d c[UNROLL];
             for (uint32_t r = 0; r < UNROLL; r++) {
                 c[r] = _mm256_load_pd(C + i + r * 4 + j * n); //[ UNROLL];
             }
-
+#pragma GCC unroll 1
             for (uint32_t k = sk; k < sk + BLOCKSIZE; k++) {
                 __m256d bb = _mm256_broadcastsd_pd(_mm_load_sd(B + j * n + k));
                 for (uint32_t r = 0; r < UNROLL; r++) {
