@@ -19,11 +19,11 @@ void dgemm_unrolled_avx256(const uint32_t n, const double *A, const double *B,
                            double *C) {
     // then n must be larger than 4*4
     constexpr uint32_t UNROLL = 4;
-    constexpr uint32_t LIMIT = UNROLL * 4;
-    if (n <= LIMIT) {
-        fprintf(stderr, " %d size smaller than %d", n, LIMIT);
-        exit(1);
-    }
+    // constexpr uint32_t LIMIT = UNROLL * 4;
+    // if (n <= LIMIT) {
+    //     fprintf(stderr, " %d size smaller than %d", n, LIMIT);
+    //     exit(1);
+    // }
 
     for (uint32_t i = 0; i < n; i += UNROLL * 4) {
         for (uint32_t j = 0; j < n; ++j) {
