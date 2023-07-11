@@ -15,7 +15,7 @@ the C intrinsics to produce the AVX-512 instructions.
 */
 void dgemm_unrolled_avx256(const uint32_t n, const double *A, const double *B,
                            double *C) {
-    constexpr uint32_t UNROLL = 4;
+    constexpr uint32_t UNROLL = UNROLL_DEF;
 
     for (uint32_t i = 0; i < n; i += UNROLL * 8) {
         for (uint32_t j = 0; j < n; ++j) {

@@ -83,16 +83,13 @@ do_block_avx_256(const uint32_t n, const uint32_t si, const uint32_t sj,
                  const uint32_t sk, const double *A, const double *B,
                  double *C) {
     constexpr uint32_t UNROLL = UNROLL_DEF;
-#pragma GCC unroll 1
     for (uint32_t i = si; i < si + BLOCKSIZE; i += UNROLL * 4) {
-#pragma GCC unroll 1
         for (uint32_t j = sj; j < sj + BLOCKSIZE; ++j) {
             __m256d c[UNROLL];
             // #pragma GCC unroll 1
             for (uint32_t r = 0; r < UNROLL; r++) {
                 c[r] = _mm256_load_pd(C + i + r * 4 + j * n); //[ UNROLL];
             }
-#pragma GCC unroll 1
             for (uint32_t k = sk; k < sk + BLOCKSIZE; k++) {
                 __m256d bb = _mm256_broadcastsd_pd(_mm_load_sd(B + j * n + k));
                 // #pragma GCC unroll 1
@@ -109,8 +106,8 @@ do_block_avx_256(const uint32_t n, const uint32_t si, const uint32_t sj,
     }
 }
 
-void dgemm_blocked_avx256(const uint32_t n, const double *A, const double *B,
-                          double *C) {
+void dgemm_blocked_avx256_unroll(const uint32_t n, const double *A,
+                                 const double *B, double *C) {
     for (uint32_t sj = 0; sj < n; sj += BLOCKSIZE) {
         for (uint32_t si = 0; si < n; si += BLOCKSIZE) {
             for (uint32_t sk = 0; sk < n; sk += BLOCKSIZE) {

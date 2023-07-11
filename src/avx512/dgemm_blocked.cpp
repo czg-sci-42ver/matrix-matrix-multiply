@@ -13,7 +13,7 @@ static constexpr uint32_t BLOCKSIZE = 32;
 static void do_block(const uint32_t n, const uint32_t si, const uint32_t sj,
                      const uint32_t sk, const double *A, const double *B,
                      double *C) {
-    constexpr uint32_t UNROLL = 4;
+    constexpr uint32_t UNROLL = UNROLL_DEF;
 
     for (uint32_t i = si; i < si + BLOCKSIZE; i += UNROLL * 8) {
         for (uint32_t j = sj; j < sj + BLOCKSIZE; ++j) {

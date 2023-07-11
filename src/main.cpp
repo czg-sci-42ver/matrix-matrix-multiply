@@ -10,6 +10,8 @@ int main() {
         {dgemm_unrolled_avx256, "dgemm_unrolled_avx256"},
         {dgemm_blocked_avx256, "dgemm_blocked_avx256"},
         {dgemm_openmp_256, "dgemm_openmp_256"},
+        {dgemm_openmp_256_unroll, "dgemm_openmp_256_unroll"},
+        {dgemm_blocked_avx256_unroll, "dgemm_blocked_avx256_unroll"},
         //{dgemm_avx512, "dgemm_avx512"},
         //{dgemm_unrolled, "dgemm_unrolled"},
         //{dgemm_blocked, "dgemm_blocked"},

@@ -1,21 +1,10 @@
 enable_language(ASM)
 # set(DCMAKE_EXPORT_COMPILE_COMMANDS 1)
-set(BLOCK_DENOMINATOR_LIST
-    1
-    2
-    4
-    5
-    10
-    20
-    40)
 set(EXE_NAME dgemm)
 # https://stackoverflow.com/questions/31037882/whats-the-cmake-syntax-to-set-and-use-variables
-file(
-  GLOB_RECURSE AVX256_FILES FOLLOW_SYMLINKS
-  LIST_DIRECTORIES false
-  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-  CONFIGURE_DEPENDS "[^main]*256.cpp")
-message(STATUS "avx256_files: ${AVX256_FILES}")
+# file( GLOB_RECURSE AVX256_FILES FOLLOW_SYMLINKS LIST_DIRECTORIES false
+# RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "[^main]*256.cpp")
+# message(STATUS "avx256_files: ${AVX256_FILES}")
 file(
   GLOB CPP_FILES
   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -83,25 +72,37 @@ foreach(val RANGE ${len_index})
   # add_executable(${target} ${CPP_FILES} ${target_file})
 endforeach()
 
-foreach(BLOCK_DENOMINATOR ${BLOCK_DENOMINATOR_LIST})
-  add_executable(# "debug_block/${EXE_NAME}_${BLOCK_DENOMINATOR}"
-                 "${EXE_NAME}_${BLOCK_DENOMINATOR}" ${CPP_FILES} main.cpp)
-  # ############################################################################
-  # CMAKE_BINARY_DIR
-  # https://stackoverflow.com/questions/59131118/how-do-i-get-the-output-path-for-a-cmake-project
-  # ;
-  # https://stackoverflow.com/questions/13556885/how-to-change-the-executable-output-directory-for-win32-builds-in-cmake
-  # ############################################################################
-  # add_custom_command to do some extra things
-  # https://stackoverflow.com/questions/74041614/cmake-how-to-get-binary-target-complete-directory-and-name-on-windows
-  set_target_properties(
-    ${EXE_NAME}_${BLOCK_DENOMINATOR} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-                                                ${CMAKE_BINARY_DIR}/debug_block)
-  set_target_properties(
-    ${EXE_NAME}_${BLOCK_DENOMINATOR}
-    PROPERTIES COMPILE_FLAGS
-               "${CMAKE_CXX_FLAGS} -DBLOCK_DENOMINATOR=${BLOCK_DENOMINATOR}")
-endforeach()
+set(USE_BLOCK_DENOMINATOR FALSE)
+
+if(USE_BLOCK_DENOMINATOR)
+  set(BLOCK_DENOMINATOR_LIST
+      1
+      2
+      4
+      5
+      10
+      20
+      40)
+  foreach(BLOCK_DENOMINATOR ${BLOCK_DENOMINATOR_LIST})
+    add_executable(# "debug_block/${EXE_NAME}_${BLOCK_DENOMINATOR}"
+                   "${EXE_NAME}_${BLOCK_DENOMINATOR}" ${CPP_FILES} main.cpp)
+    # ##########################################################################
+    # CMAKE_BINARY_DIR
+    # https://stackoverflow.com/questions/59131118/how-do-i-get-the-output-path-for-a-cmake-project
+    # ;
+    # https://stackoverflow.com/questions/13556885/how-to-change-the-executable-output-directory-for-win32-builds-in-cmake
+    # ##########################################################################
+    # add_custom_command to do some extra things
+    # https://stackoverflow.com/questions/74041614/cmake-how-to-get-binary-target-complete-directory-and-name-on-windows
+    set_target_properties(
+      ${EXE_NAME}_${BLOCK_DENOMINATOR}
+      PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/debug_block)
+    set_target_properties(
+      ${EXE_NAME}_${BLOCK_DENOMINATOR}
+      PROPERTIES COMPILE_FLAGS
+                 "${CMAKE_CXX_FLAGS} -DBLOCK_DENOMINATOR=${BLOCK_DENOMINATOR}")
+  endforeach()
+endif()
 
 # set_target_properties(${EXE_NAME}.s PROPERTIES COMPILE_FLAGS "-S
 # -fverbose-asm")
@@ -119,20 +120,21 @@ also see this figure https://www.dartmouth.edu/~rc/classes/softdev_linux/complex
 5. `target_compile_options` and `COMPILE_FLAGS` diff https://stackoverflow.com/questions/24302073/difference-between-compile-flags-and-compile-options
 .]]
 set(EXE_NAME_FLAG ${CMAKE_CXX_FLAGS})
-# set(UNROLL TRUE)
+set(NO_INLINE_UNROLL FALSE)
 # https://stackoverflow.com/questions/18001198/how-do-you-concatenate-string-in-cmake
 string(APPEND EXE_NAME_FLAG " -save-temps -masm=intel -fverbose-asm")
-set(EXE_NAME_FLAG_NO_INLINE_UNROLL ${EXE_NAME_FLAG})
-#[[
-see https://stackoverflow.com/questions/39478171/loop-unrolling-behaviour-in-gcc; "-fno-move-loop-invariants..." in https://linux-il.linux.org.il.narkive.com/8SnKn2yZ/disabling-loop-unrolling-in-gcc ; maybe also "#pragma GCC push_options" https://www.mersenneforum.org/showthread.php?t=22306
-.]]
-# string(APPEND EXE_NAME_FLAG_NO_INLINE_UNROLL " -fno-inline-small-functions
-# -fno-inline -fno-unroll-loops -fno-peel-loops -fno-inline-functions") # this
-# will fail
-string(APPEND EXE_NAME_FLAG_NO_INLINE_UNROLL
-       " -fno-unroll-loops -fno-peel-loops")
 message(STATUS "after assignment, COMPILE_FLAGS: ${EXE_NAME_FLAG}")
-if(UNROLL)
+if(NO_INLINE_UNROLL)
+  set(EXE_NAME_FLAG_NO_INLINE_UNROLL ${EXE_NAME_FLAG})
+  #[[
+  see https://stackoverflow.com/questions/39478171/loop-unrolling-behaviour-in-gcc; "-fno-move-loop-invariants..." in https://linux-il.linux.org.il.narkive.com/8SnKn2yZ/disabling-loop-unrolling-in-gcc ; maybe also "#pragma GCC push_options" https://www.mersenneforum.org/showthread.php?t=22306
+  .]]
+  # string(APPEND EXE_NAME_FLAG_NO_INLINE_UNROLL " -fno-inline-small-functions
+  # -fno-inline -fno-unroll-loops -fno-peel-loops -fno-inline-functions") # this
+  # will fail
+  string(APPEND EXE_NAME_FLAG_NO_INLINE_UNROLL
+         " -fno-unroll-loops -fno-peel-loops")
+  message(STATUS "use ${EXE_NAME_FLAG_NO_INLINE_UNROLL} with ${EXE_NAME}")
   set_target_properties(
     ${EXE_NAME} PROPERTIES COMPILE_FLAGS ${EXE_NAME_FLAG_NO_INLINE_UNROLL})
 else()

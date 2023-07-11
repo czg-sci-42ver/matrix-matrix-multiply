@@ -50,7 +50,7 @@ void dgemm_avx(int N, double *a, double *b, double *c) {
 }
 
 // Loop unrolling;  P&H p. 352
-const int UNROLL = 4;
+const int UNROLL = UNROLL_DEF;
 
 void dgemm_unroll(int n, double *A, double *B, double *C) {
     for (int i=0;  i<n;  i+= UNROLL*4) {
