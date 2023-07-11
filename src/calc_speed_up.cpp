@@ -70,7 +70,7 @@ void calc_speed_up(std::vector<Dgemm> &all_dgemm_inst) {
             std::cout << std::setw(30) << v.m_name
                       << ":  elapsed-time=" << std::setw(10)
                       << v.m_epapsed_time;
-            if (v.m_name != "dgemm_basic") {
+            if (v.m_name != all_dgemm[0].m_name) {
                 std::cout << "     speed-up=" << std::setw(10)
                           << all_dgemm[0].m_epapsed_time /
                                  static_cast<double>(v.m_epapsed_time);

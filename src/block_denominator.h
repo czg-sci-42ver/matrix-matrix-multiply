@@ -2,7 +2,7 @@
 #define BLOCK_DENOMINATOR 20
 #endif
 #ifndef N
-#define N (32 * 30)
+#define N (32 * 90)
 #endif
 #ifndef BLOCKSIZE_DEF
 // #define BLOCKSIZE_DEF (N/BLOCK_DENOMINATOR)

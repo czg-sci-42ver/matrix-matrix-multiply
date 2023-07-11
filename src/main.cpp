@@ -4,12 +4,12 @@
 int main() {
     // check();
     std::vector<Dgemm> all_dgemm_inst = {
-        {dgemm_basic, "dgemm_basic"},
-        {dgemm_basic_blocked, "dgemm_basic_blocked"},
-        {dgemm_avx256, "dgemm_avx256"},
+        // {dgemm_basic, "dgemm_basic"},
+        // {dgemm_basic_blocked, "dgemm_basic_blocked"},
+        // {dgemm_avx256, "dgemm_avx256"},
         {dgemm_unrolled_avx256, "dgemm_unrolled_avx256"},
-        {dgemm_blocked_avx256, "dgemm_blocked_avx256"},
-        {dgemm_openmp_256, "dgemm_openmp_256"},
+        // {dgemm_blocked_avx256, "dgemm_blocked_avx256"},
+        // {dgemm_openmp_256, "dgemm_openmp_256"},
         {dgemm_openmp_256_unroll, "dgemm_openmp_256_unroll"},
         {dgemm_blocked_avx256_unroll, "dgemm_blocked_avx256_unroll"},
         //{dgemm_avx512, "dgemm_avx512"},
