@@ -11,3 +11,7 @@
 #ifndef UNROLL_DEF
 #define UNROLL_DEF 4
 #endif
+
+#ifndef P
+#define P 64 /* define a constant that we’ll use a few times */
+#endif

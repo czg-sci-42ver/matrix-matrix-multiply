@@ -41,7 +41,7 @@ static void do_block(const uint32_t n, const uint32_t si, const uint32_t sj,
 
 void dgemm_openmp_256_unroll(const uint32_t n, const double *A, const double *B,
                              double *C) {
-#pragma omp parallel for
+#pragma omp parallel for num_threads(P)
     for (uint32_t sj = 0; sj < n; sj += BLOCKSIZE) {
         for (uint32_t si = 0; si < n; si += BLOCKSIZE) {
             for (uint32_t sk = 0; sk < n; sk += BLOCKSIZE) {
